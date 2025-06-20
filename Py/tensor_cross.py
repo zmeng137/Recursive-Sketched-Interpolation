@@ -49,7 +49,7 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore = []     # list storing TT-factors
     TTCore_cc = []  # Tensor-train including intermediate cross cores
     TTRank = [1]    # TT-Rank list
-    Nested_J = {}   # One-sided nested set
+    InterpSet = {}   # One-sided nested set
 
     for i in range(dim-1):
         curr_dim = shape[i]  # Current dimension
@@ -62,16 +62,16 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
 
         # Mapping between r/c selection and tensor index pivots
         if i == 0:
-            Nested_J[i] = np.array(pr).reshape(-1, 1)
+            InterpSet[i] = np.array(pr).reshape(-1, 1)
         else:
             I = np.empty([rank, i+1])
-            prev_I = Nested_J[i-1]
+            prev_I = InterpSet[i-1]
             for j in range(rank):
                 p_I_idx = pr[j] // curr_dim
                 c_i_idx = pr[j] % curr_dim
                 I[j,0:i] = prev_I[p_I_idx]
                 I[j,i] = c_i_idx
-            Nested_J[i] = I        
+            InterpSet[i] = I        
         #I_slice = [tuple(I + [slice(None)])]
         #J_slice = [tuple(J + [slice(None)])]
 
@@ -86,11 +86,12 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
         r = rank  # Renewal r
         W = r_subset[0:rank,:]
         
+        # Check the nested condition
         if (verbose):
             for ele in np.nditer(W):
                 match_idx = np.argwhere(tensor == ele)
                 nested_idx = match_idx[0][0:i+1]
-                is_present = np.any(np.all(Nested_J[i] == nested_idx, axis=1))
+                is_present = np.any(np.all(InterpSet[i] == nested_idx, axis=1))
                 if (is_present == False):
                     print("Nested Interpolation error!")
         
@@ -98,7 +99,7 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore.append(T_last)    
     TTCore_cc.append(T_last)
     TTRank.append(1)
-    return TTCore, TTCore_cc, TTRank, Nested_J
+    return TTCore, TTCore_cc, TTRank, InterpSet
 
 # PRRLU-based (Exact) Tensor-Train CUR Decomposition (Sweep from Right to Left)
 def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
@@ -111,7 +112,7 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore = []     # list storing TT-factors
     TTCore_cc = []  # Tensor-train including intermediate cross cores
     TTRank = [1]    # TT-Rank list
-    Nested_J = {}   # One-sided nested set
+    InterpSet = {}   # One-sided nested set
 
     # Mapping between r/c selection and tensor index pivots
     iterlist = list(range(1, dim))  # Create iteration list: 1, 2, ..., d-1
@@ -127,16 +128,16 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
         # Mapping between r/c selection and tensor index pivots
         pc = np.array(pc)
         if i == dim-1:
-            Nested_J[i] = np.array(pc).reshape(-1,1)
+            InterpSet[i] = np.array(pc).reshape(-1,1)
         else:
             I = np.empty([rank, dim-i])
-            prev_I = Nested_J[i+1]
+            prev_I = InterpSet[i+1]
             for j in range(rank):
                 p_I_idx = pc[j] // curr_dim
                 c_i_idx = pc[j] % curr_dim
                 I[j,1:] = prev_I[p_I_idx]
                 I[j,0] = c_i_idx
-            Nested_J[i] = I        
+            InterpSet[i] = I        
         #I_slice = [tuple(I + [slice(None)])]
         #J_slice = [tuple(J + [slice(None)])]  
 
@@ -151,11 +152,12 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
         r = rank  # Renewal r
         W = c_subset[:, 0:rank]
 
+       # Check the nested condition
         if (verbose):
             for ele in np.nditer(W):
                 match_idx = np.argwhere(tensor == ele)
                 nested_idx = match_idx[0][i:]
-                is_present = np.any(np.all(Nested_J[i] == nested_idx, axis=1))
+                is_present = np.any(np.all(InterpSet[i] == nested_idx, axis=1))
                 if (is_present == False):
                     print("Nested Interpolation error!")     
         
@@ -166,7 +168,20 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore.reverse()
     TTCore_cc.reverse()
     TTRank.reverse()
-    return TTCore, TTCore_cc, TTRank, Nested_J
+    return TTCore, TTCore_cc, TTRank, InterpSet
+
+# Assemble TT-Cores by (fully nested) interpolation pivots 
+def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet: dict, TTRank: np.array):
+    shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
+    dim = len(shape)      # Get the number of dimension 
+        
+    for i in range(dim):
+        core = np.empty([TTRank[i], shape[i], TTRank[i+1]])
+        
+
+        pass
+
+    return
 
 '''
 # Some initial attempts: Nonlinear TT-CUR mapping
