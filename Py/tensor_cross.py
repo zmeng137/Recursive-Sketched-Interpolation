@@ -2,9 +2,6 @@ import numpy as np
 import tensorly as tl
 from interpolation import interpolative_prrldu, cur_prrldu, cur_prrldu_ninv
 
-# Rank-revealing based exact TT decomposition
-# Evaluation based TT Cross format...
-
 # PRRLU-based Tensor-Train Interpolative Decomposition
 def TT_IDPRRLDU(tensorX: tl.tensor, r_max: int, eps: float, verbose: int = 0) -> list[tl.tensor]:
     shape = tensorX.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
@@ -49,7 +46,7 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore = []     # list storing TT-factors
     TTCore_cc = []  # Tensor-train including intermediate cross cores
     TTRank = [1]    # TT-Rank list
-    InterpSet = {}   # One-sided nested set
+    InterpSet = {}  # One-sided nested set
 
     for i in range(dim-1):
         curr_dim = shape[i]  # Current dimension
@@ -72,8 +69,6 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
                 I[j,0:i] = prev_I[p_I_idx]
                 I[j,i] = c_i_idx
             InterpSet[i] = I        
-        #I_slice = [tuple(I + [slice(None)])]
-        #J_slice = [tuple(J + [slice(None)])]
 
         # Append new TT-factor
         Ti = tl.reshape(c_subset @ cross_inv, [r, shape[i], rank])
@@ -112,7 +107,7 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore = []     # list storing TT-factors
     TTCore_cc = []  # Tensor-train including intermediate cross cores
     TTRank = [1]    # TT-Rank list
-    InterpSet = {}   # One-sided nested set
+    InterpSet = {}  # One-sided nested set
 
     # Mapping between r/c selection and tensor index pivots
     iterlist = list(range(1, dim))  # Create iteration list: 1, 2, ..., d-1
@@ -138,13 +133,11 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
                 I[j,1:] = prev_I[p_I_idx]
                 I[j,0] = c_i_idx
             InterpSet[i] = I        
-        #I_slice = [tuple(I + [slice(None)])]
-        #J_slice = [tuple(J + [slice(None)])]  
 
         # Append new TT-factor
         Ti = tl.reshape(cross_inv @ r_subset, [rank, shape[i], r], order='F')
         TTCore.append(Ti)                                          
-        TTCore_cc.append(tl.reshape(r_subset, [rank, shape[i], r]))  
+        TTCore_cc.append(tl.reshape(r_subset, [rank, shape[i], r], order='F'))  
         TTCore_cc.append(cross)
         TTRank.append(rank)
 
@@ -170,57 +163,76 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTRank.reverse()
     return TTCore, TTCore_cc, TTRank, InterpSet
 
+# Slice tensor: T[I,:]
+def slice_first_modes(arr, indices):
+    # Slice the first len(indices) modes with given indices
+    slicing = tuple(indices) + tuple(slice(None) for _ in range(arr.ndim - len(indices)))
+    return arr[slicing]  # Use square brackets, not parentheses
+
+# Slice tensor: T[:,J]
+def slice_last_modes(arr, indices):
+    # Slice the last len(indices) modes with given indices
+    slicing = tuple(slice(None) for _ in range(arr.ndim - len(indices))) + tuple(indices)
+    return arr[slicing] 
+
 # Assemble TT-Cores by (fully nested) interpolation pivots 
 def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet: dict, TTRank: np.array):
     shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
     dim = len(shape)      # Get the number of dimension 
-        
-    for i in range(dim):
-        core = np.empty([TTRank[i], shape[i], TTRank[i+1]])
-        
+    assert len(TTRank) == dim + 1, "Number of TT-Ranks should equal tensor order + 1, i.e., with rank = 1 at boundaries!"
+    TTCore_cross = []
 
-        pass
-
-    return
-
-'''
-# Some initial attempts: Nonlinear TT-CUR mapping
-def NLTT_CUR(tensorX: tl.tensor, func, r_max: int, eps: float, verbose: int = 0):
-    shape = tensorX.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
-    dim = len(shape)       # Get the number of dimension
-     
-    W = tensorX        # Copy tensor X -> W
-    nbar = W.size      # Total size of W
-    r = 1              # Rank r
-    ttList = []        # list storing TT-factors
-    ttList_cc = []     # Tensor-train including intermediate cross cores
-    
-    iterlist = list(range(1, dim))  # Create iteration list: 1, 2, ..., d-1
-    iterlist.reverse()              # Reverse the iteration list: d-1, ..., 1 
-    for i in iterlist:
-        W = tl.reshape(W, [int(nbar / r / shape[i]), int(r * shape[i])])  # Reshape W       
+    # Assmebly of TT-Cores via interpolation sets
+    for d in range(dim):
+        # Initialize TT-cores and cross matrices
+        core = np.empty([TTRank[d], shape[d], TTRank[d+1]])
+        cross_mat = np.empty([TTRank[d+1], TTRank[d+1]])
         
-        #C, X, cols, error = interpolative_prrldu(W, cutoff=delta, maxdim=r_max)
-        r_subset, c_subset, cross, rank, pr, pc = cur_prrldu_ninv(W, eps, r_max)
-        nl_r_subset = func(r_subset)
-        nl_cross = func(cross) 
-        nl_cross_inv = np.linalg.inv(nl_cross)
-        ri = rank    
+        # Construct TT-cores
+        if d == 0:
+            assert TTRank[d+1] == len(J_interpSet[1]), "Interpolation set size != Given rank"
+            for j in range(TTRank[d+1]):
+                J_slice = J_interpSet[1][j].astype(int).tolist()
+                core[0,:,j] = slice_last_modes(tensor, J_slice)
+            TTCore_cross.append(core) 
+        elif d == dim-1:
+            assert TTRank[d] == len(I_interpSet[d-1]), "Interpolation set size != Given rank"
+            for i in range(TTRank[d]):
+                I_slice = I_interpSet[d-1][i].astype(int).tolist()
+                core[i,:,0] = slice_first_modes(tensor, I_slice)
+            TTCore_cross.append(core)
+        else:
+            for i in range(TTRank[d]):
+                I_slice = I_interpSet[d-1][i].astype(int).tolist()
+                for j in range(TTRank[d+1]):
+                    J_slice = J_interpSet[d+1][j].astype(int).tolist()
+                    temp = slice_first_modes(tensor, I_slice)
+                    core[i,:,j] = slice_last_modes(temp, J_slice)
+            TTCore_cross.append(core)
 
-        # Append new TT-factor
-        Ti = tl.reshape(nl_cross_inv @ nl_r_subset, [ri, shape[i], r])
-        ttList.append(Ti)                                          
-        ttList_cc.append(tl.reshape(nl_r_subset, [ri, shape[i], r]))  
-        ttList_cc.append(nl_cross)
-         
-        nbar = int(nbar * ri / shape[i] / r)  # New total size of W
-        r = ri             # Renewal r
-        W = c_subset[:, 0:ri]     # W = U[..] * S[..]
-        
-    T1 = func(tl.reshape(W, [1, shape[0], r]))
-    ttList.append(T1)    
-    ttList_cc.append(T1)
-    ttList.reverse()
-    ttList_cc.reverse()
-    return ttList, ttList_cc
-'''
+        # Construct cross matrices
+        if d != dim-1:
+            for i in range(TTRank[d+1]):
+                I_slice = I_interpSet[d][i].astype(int).tolist()
+                for j in range(TTRank[d+1]):
+                    J_slice = J_interpSet[d+1][j].astype(int).tolist()
+                    temp = slice_first_modes(tensor, I_slice)
+                    cross_mat[i,j] = slice_last_modes(temp, J_slice)
+            TTCore_cross.append(cross_mat)
+    return TTCore_cross
+
+# Compute inverse of cross matrices and merge them into TT-cores
+def cross_inv_merge(TTCore_cross, dimension):
+    TTCores = [TTCore_cross[0]]
+    for i in range(dimension-1):
+        core = TTCore_cross[2*i+2]
+        cross = TTCore_cross[2*i+1]
+        core_shape0 = core.shape[0]
+        core_shape1 = core.shape[1]
+        core_shape2 = core.shape[2]    
+        cross_inv = np.linalg.inv(cross)
+        core_reshape = core.reshape(core_shape0,-1)
+        merge = cross_inv @ core_reshape
+        new_core = merge.reshape(core_shape0, core_shape1, core_shape2)
+        TTCores.append(new_core)
+    return TTCores

@@ -87,3 +87,47 @@ def read_from_tns(filename, shape):
     
     # Create COO array
     return sp.COO(coords.T, values, shape=shape)
+
+def smooth_singular_values(n, decay_rate=0.1):
+    # Generate smoothly decaying singular values
+    return np.exp(-decay_rate * np.arange(n))
+
+def generate_smooth_svd_matrix(m, n, decay_rate=0.5, seed = 100):
+    # Random orthogonal matrices
+    np.random.seed(seed)
+    U, _ = np.linalg.qr(np.random.randn(m, min(m,n)))
+    V, _ = np.linalg.qr(np.random.randn(n, min(m,n)))
+    
+    # Smooth singular values
+    s = smooth_singular_values(min(m,n), decay_rate)
+    
+    # Construct matrix
+    S = np.zeros((m, n))
+    np.fill_diagonal(S, s)
+    
+    return U @ S @ V.T
+
+# Singular value-controlled TT Generator (TODO)
+def generate_controlled_svd_tt(shape, tt_rank, decay_rate, seed):
+    dim = len(shape)       # Dimension
+    nbar = np.prod(shape)  # Total size of the tensor
+    r = 1                  # Rank r
+    ttList = []            # List storing tt factors
+    iterlist = list(range(1, dim))  # Create iteration list: 1, 2, ..., d-1
+    iterlist.reverse()              # Reverse the iteration list: d-1, ..., 1
+    
+    np.random.seed(seed)
+    for i in iterlist:
+        m = int(nbar / r / shape[i])  # Reshaped rows 
+        n = int(r * shape[i])         # Reshaped columns
+        r = min(m, n, tt_rank[i])     # TT-rank
+
+        s = smooth_singular_values(r, decay_rate[i])
+        S = np.zeros((r, r))
+        np.fill_diagonal(S, s)
+
+        U, _ = np.linalg.qr(np.random.randn(m, r))
+        V, _ = np.linalg.qr(np.random.randn(n, r))
+        # TODO...
+    
+    return
