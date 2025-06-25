@@ -3,6 +3,7 @@ import tensorly as tl
 import matplotlib.pyplot as plt
 
 from tt_svd import TT_SVD
+from tensor_cross import TT_CUR_L2R
 
 # Let's say we have a 5 order quantics
 
@@ -16,18 +17,40 @@ def populate_tensor_fromfunction(dims, func):
     return tl.tensor(tensor_data)
 
 quantic_repres = lambda x1,x2,x3,x4,x5: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5)
-nonlinear_func = lambda t: t ** 2
+nonlinear_func = lambda t: t**4 + np.exp(t) - 1
+gaussian_func = lambda t, a, b, c: a * np.exp(-(t - b) * (t - b) / (2 * c * c)) 
 
 tl.set_backend("numpy")
 shape = (2,2,2,2,2)
 x_tensor = populate_tensor_fromfunction(shape, quantic_repres)
-f_tensor = nonlinear_func(x_tensor)
+f_tensor = gaussian_func(x_tensor, 1, 0, 1)
+g_tensor = gaussian_func(x_tensor, 1, -0.3, 1) * gaussian_func(x_tensor, 1, -0.7, 1)
 
-r_max = 3
+r_max = 2
 eps = 1e-8
 TTCores = TT_SVD(f_tensor, r_max, eps)
 recon = tl.tt_to_tensor(TTCores)
-error = tl.norm(f_tensor - recon) / tl.norm(f_tensor)
+error1 = tl.norm(f_tensor - recon) / tl.norm(f_tensor)
+
+r_max = 3
+eps = 1e-14
+f_tensor = gaussian_func(x_tensor, 1, -0.3, 1)
+TTCores, TTCores_Cross, TTRank, Nested_I_1 = TT_CUR_L2R(f_tensor, r_max, eps)
+recon = tl.tt_to_tensor(TTCores)
+error2 = tl.norm(f_tensor - recon) / tl.norm(f_tensor)
+
+r_max = 3
+eps = 1e-14
+f_tensor = gaussian_func(x_tensor, 1, -0.7, 1)
+TTCores, TTCores_Cross, TTRank, Nested_I_2 = TT_CUR_L2R(f_tensor, r_max, eps)
+recon = tl.tt_to_tensor(TTCores)
+error3 = tl.norm(f_tensor - recon) / tl.norm(f_tensor)
+
+r_max = 4
+eps = 1e-14
+TTCores, TTCores_Cross, TTRank, Nested_I_3 = TT_CUR_L2R(g_tensor, r_max, eps)
+recon = tl.tt_to_tensor(TTCores)
+error4 = tl.norm(g_tensor - recon) / tl.norm(g_tensor)
 
 scatter = plt.scatter(x_tensor, f_tensor, 
                      c=f_tensor,  # Color by f values
