@@ -135,22 +135,19 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1, full_nest
 
     # Site-1 TCI for restoring full nesting
     if (full_nest):
-        iterlist = list(range(1, dim-1))  # Create iteration list: 1, 2, ..., d-1
-        iterlist.reverse()                # Reverse the iteration list: d-1, ..., 1
+        iterlist = list(range(1, dim-1))  # Create iteration list: 1, 2, ..., d-2
+        iterlist.reverse()                # Reverse the iteration list: d-2, ..., 1
         for i in iterlist:
-            ccore = TTCore_cc[2 * i]    # Current TT-core
-            cshape = ccore.shape     # Core shape
-
-            # Need to check reshaped order
-            mat = tl.reshape(ccore, [cshape[0], cshape[1] * cshape[2]])  # Reshape 3D core to matrix
+            ccore = TTCore_cc[2 * i]  # Current TT-core
+            cshape = ccore.shape      # Core shape
+            mat = tl.reshape(ccore, [cshape[0], cshape[1] * cshape[2]], order='F')  # Reshape 3D core to matrix
             _, _, _, _, _, rps, cps, _ = prrldu(mat, 0, cshape[0])  # PRRLU for new pivots
-
             curr_dim = cshape[1]
             prev_J = InterpSet_J[i+2]
             J = np.empty([cshape[0], dim-i])
             for j in range(cshape[0]):
-                p_J_idx = cps[j] % curr_dim
-                c_J_idx = cps[j] // curr_dim
+                p_J_idx = cps[j] // curr_dim
+                c_J_idx = cps[j] % curr_dim
                 J[j,1:] = prev_J[p_J_idx]
                 J[j,0] = c_J_idx
             InterpSet_J[i+1] = J
