@@ -221,16 +221,6 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTRank.reverse()
     return TTCore, TTCore_cc, TTRank, InterpSet
 
-# 1-site tensor cross interpolation for nesting condition and rank compression
-def TCI_site1(tensor_train, nested_I, ):
-    
-    return
-
-# Sweep and PRRLU -based tensor cross interpolation
-def TCI_PRRLU(tensor_func, tol, max_iter):
-    
-    return
-
 # Compute inverse of cross matrices and merge them into TT-cores
 def cross_inv_merge(TTCore_cross, dimension):
     TTCores = [TTCore_cross[0]]
@@ -262,22 +252,22 @@ def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet
         
         # Construct TT-cores
         if d == 0:
-            assert TTRank[d+1] == len(J_interpSet[1]), "Interpolation set size != Given rank"
-            for j in range(TTRank[d+1]):
-                J_slice = J_interpSet[1][j].astype(int).tolist()
+            assert TTRank[d+1] == len(J_interpSet[2]), "Interpolation set size != Given rank"
+            for j in range(TTRank[1]):
+                J_slice = J_interpSet[2][j].astype(int).tolist()
                 core[0,:,j] = slice_last_modes(tensor, J_slice)
             TTCore_cross.append(core) 
         elif d == dim-1:
-            assert TTRank[d] == len(I_interpSet[d-1]), "Interpolation set size != Given rank"
-            for i in range(TTRank[d]):
-                I_slice = I_interpSet[d-1][i].astype(int).tolist()
+            assert TTRank[d] == len(I_interpSet[d]), "Interpolation set size != Given rank"
+            for i in range(TTRank[dim-1]):
+                I_slice = I_interpSet[d][i].astype(int).tolist()
                 core[i,:,0] = slice_first_modes(tensor, I_slice)
             TTCore_cross.append(core)
         else:
             for i in range(TTRank[d]):
-                I_slice = I_interpSet[d-1][i].astype(int).tolist()
+                I_slice = I_interpSet[d][i].astype(int).tolist()
                 for j in range(TTRank[d+1]):
-                    J_slice = J_interpSet[d+1][j].astype(int).tolist()
+                    J_slice = J_interpSet[d+2][j].astype(int).tolist()
                     temp = slice_first_modes(tensor, I_slice)
                     core[i,:,j] = slice_last_modes(temp, J_slice)
             TTCore_cross.append(core)
@@ -285,10 +275,114 @@ def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet
         # Construct cross matrices
         if d != dim-1:
             for i in range(TTRank[d+1]):
-                I_slice = I_interpSet[d][i].astype(int).tolist()
+                I_slice = I_interpSet[d+1][i].astype(int).tolist()
                 for j in range(TTRank[d+1]):
-                    J_slice = J_interpSet[d+1][j].astype(int).tolist()
+                    J_slice = J_interpSet[d+2][j].astype(int).tolist()
                     temp = slice_first_modes(tensor, I_slice)
                     cross_mat[i,j] = slice_last_modes(temp, J_slice)
             TTCore_cross.append(cross_mat)
+    return TTCore_cross
+
+# 1-site tensor cross interpolation for nesting condition and rank compression
+def TCI_1site(tensor_train, nested_I, ):
+
+    return
+
+# Sweep and PRRLU -based tensor cross interpolation
+def TCI_PRRLU(tensor_func, tol, max_iter):
+    
+    return
+
+# Get the PI tensor (4-order) by slicing the original tensor via interpolation sets  
+def PI_4tensor_slicing(tensor, mode1, mode2, I_set, J_set):
+    # Initialize the PI tensor
+    shape = tensor.shape
+    s1 = shape[mode1-1]
+    s2 = shape[mode2-1]
+    left_rank = 1
+    right_rank = 1
+    if len(I_set) != 0:
+        I_set = I_set.astype(int).tolist()
+        left_rank = len(I_set)
+    if len(J_set) != 0:
+        right_rank = len(J_set)
+        J_set = J_set.astype(int).tolist()
+    PI_4tensor = np.empty([left_rank, s1, s2, right_rank])
+
+    # Construct the PI tensor
+    if I_set == []:
+        for j in range(right_rank):
+            j_idx = J_set[j]
+            PI_4tensor[0,:,:,j] = slice_last_modes(tensor, j_idx)
+    elif J_set == []:
+        for i in range(left_rank):
+            i_idx = I_set[i]
+            PI_4tensor[i,:,:,0] = slice_first_modes(tensor, i_idx)
+    else:
+        for i in range(left_rank):
+            i_idx = I_set[i]
+            temp = slice_first_modes(tensor, i_idx)
+            for j in range(right_rank):
+                j_idx = J_set[j]
+                PI_4tensor[i,:,:,j] = slice_last_modes(temp, j_idx)
+    return PI_4tensor
+
+def TCI_2site(tensor, tt_rmax, interp_I = None, interp_J = None):
+    # tensor information
+    shape = tensor.shape
+    dim = len(shape)  # Let's say dim=L, then I is from 1 to L-1, J is from 2 to L
+
+    # Initialization
+    if interp_I == None or interp_J == None:
+        # TODO: Give a reasonable pivot initialization 
+        pass
+
+    # Cross sweep back and forth: left to right
+    for l in range(1, dim):
+        I_set = interp_I[l-1]
+        J_set = interp_J[l+2]
+        PI_4tensor_i = PI_4tensor_slicing(tensor, l, l+1, I_set, J_set)
+        PI_shape = PI_4tensor_i.shape
+        PI_matrix = tl.reshape(PI_4tensor_i, [PI_shape[0]*PI_shape[1], PI_shape[2]*PI_shape[3]])
+        _, d, _, _, _, pr, pc, _ = prrldu(PI_matrix, 0, tt_rmax)
+        pr = pr[0:len(d)]
+        pc = pc[0:len(d)]
+
+        # Map pr, pc to I, J
+        # ...
+
+    # Cross sweep back and forth: right to left
+    for l in range(dim, 1, -1):
+        I_set = interp_I[l-1]
+        J_set = interp_J[l+2]
+
+
+    # Assemble the tensor train and test convergence (error)
+
+    return
+
+def TCI_pivot_accum(tensor, interpSet_I, interpSet_J, new_pivot_i):
+    
+    return
+
+# PROBLEM ALGORITHM!
+# Assemble tensor cross interpolation by union of interpolation sets I/J
+# Actually the naive union method cannot even work, as there I,J's size at the same mode after union is not same
+def TCI_Union(tensor, I1, J1, I2, J2):
+    shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
+    dim = len(shape)      # Get the number of dimension 
+    TTRank = [1]          # TTRank list [1,...,1]
+    TTCore_cross = []     # TCI list
+    
+    # Union of I1 and I2, J1 and J2
+    Union_I = {}
+    Union_J = {}
+    for d in range(dim-1):
+        Union_I[d+1] = np.unique(np.vstack([I1[d+1], I2[d+1]]), axis=0)
+        Union_J[d+2] = np.unique(np.vstack([J1[d+2], J2[d+2]]), axis=0)
+        TTRank.append(Union_I[d+1].shape[0])
+    TTRank.append(1)
+    # PROBELM!
+    # Assemble TT-cores from union interpolation sets
+    TTCore_cross = cross_core_interp_assemble(tensor, Union_I, Union_J, TTRank)
     return TTCore_cross
