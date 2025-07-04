@@ -284,13 +284,8 @@ def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet
     return TTCore_cross
 
 # 1-site tensor cross interpolation for nesting condition and rank compression
-def TCI_1site(tensor_train, nested_I, ):
+def TCI_1site(tensor, interp_I, interp_J):
 
-    return
-
-# Sweep and PRRLU -based tensor cross interpolation
-def TCI_PRRLU(tensor_func, tol, max_iter):
-    
     return
 
 # Get the PI tensor (4-order) by slicing the original tensor via interpolation sets  
@@ -337,6 +332,8 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
     if interp_I == None or interp_J == None:
         # TODO: Give a reasonable pivot initialization 
         pass
+    result_I = interp_I.copy()
+    result_J = interp_J.copy()
 
     # TCI sweep iteration
     iter_flag = True
@@ -346,8 +343,8 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
         # Cross sweep back and forth: left to right
         for l in range(1, dim):
             # Slice tensor 
-            I_set = interp_I[l-1]
-            J_set = interp_J[l+2]
+            I_set = result_I[l-1]
+            J_set = result_J[l+2]
             ldim = shape[l-1]
             rdim = len(J_set)
             PI_4tensor_i = PI_4tensor_slicing(tensor, l, l+1, I_set, J_set)
@@ -363,33 +360,33 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
 
             # Map pr, pc to I, J
             if l == 1:
-                interp_I[l] = np.array(pr).reshape(-1, 1)
+                result_I[l] = np.array(pr).reshape(-1, 1)
             else:
                 I = np.empty([rank, l])
-                prev_I = interp_I[l-1]
+                prev_I = result_I[l-1]
                 for i in range(rank):
                     p_I_idx = pr[i] // ldim
                     c_I_idx = pr[i]  % ldim
                     I[i,0:l-1] = prev_I[p_I_idx]
                     I[i,l-1] = c_I_idx
-                interp_I[l] = I
+                result_I[l] = I
             if l == dim-1:
-                interp_J[l+1] = np.array(pc).reshape(-1,1)
+                result_J[l+1] = np.array(pc).reshape(-1,1)
             else:
                 J = np.empty([rank, dim-l])
-                prev_J = interp_J[l+2]
+                prev_J = result_J[l+2]
                 ####### PROBLEM MAYBE? #####
                 for j in range(rank):
                     p_J_idx = pc[j] % rdim  ###
                     c_J_idx = pc[j] // rdim  ###
                     J[j,1:] = prev_J[p_J_idx]
                     J[j,0] = c_J_idx
-                interp_J[l+1] = J
+                result_I[l+1] = J
 
         # Cross sweep back and forth: right to left
         for l in range(dim, 1, -1):
-            I_set = interp_I[l-2]
-            J_set = interp_J[l+1]
+            I_set = result_I[l-2]
+            J_set = result_J[l+1]
             ldim = shape[l-2]
             rdim = len(J_set)
             PI_4tensor_i = PI_4tensor_slicing(tensor, l-1, l, I_set, J_set)
@@ -405,31 +402,31 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
 
             # Map pr, pc to I, J
             if l == dim:
-                interp_J[l] = np.array(pc).reshape(-1,1)
+                result_J[l] = np.array(pc).reshape(-1,1)
             else:
                 J = np.empty([rank, dim-l+1])
-                prev_J = interp_J[l+1]
+                prev_J = result_J[l+1]
                 for j in range(rank):
                     p_J_idx = pc[j] % rdim  
                     c_J_idx = pc[j] // rdim 
                     J[j,1:] = prev_J[p_J_idx]
                     J[j,0] = c_J_idx
-                interp_J[l] = J        
+                result_J[l] = J        
             if l == 2:
-                interp_I[l-1] = np.array(pr).reshape(-1, 1)
+                result_I[l-1] = np.array(pr).reshape(-1, 1)
             else:
                 I = np.empty([rank, l-1])
-                prev_I = interp_I[l-2]
+                prev_I = result_I[l-2]
                 for i in range(rank):
                     p_I_idx = pr[i] // ldim
                     c_I_idx = pr[i]  % ldim
                     I[i,0:l-2] = prev_I[p_I_idx]
                     I[i,l-2] = c_I_idx
-                interp_I[l-1] = I
+                result_I[l-1] = I
             
-        
+        # TODO... Not a good convergence check
         # Assemble the tensor train and test convergence (error)
-        TT_cross = cross_core_interp_assemble(tensor, interp_I, interp_J, TTRank)
+        TT_cross = cross_core_interp_assemble(tensor, result_I, result_J, TTRank)
         TT_cores = cross_inv_merge(TT_cross, dim)
         recon_t = tl.tt_to_tensor(TT_cores)
         rel_diff = tl.norm(recon_t - tensor) / tl.norm(tensor)
@@ -441,12 +438,29 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
         if delta_diff < 1e-8:
             break
         
-    return interp_I, interp_J, TTRank
+    return result_I, result_J, TTRank, recon_t
 
 def TCI_pivot_accum(tensor, interpSet_I, interpSet_J, new_pivot_i):
     
     return
 
+def Nested_Interp_Union(tensor, interpSet_I1, interpSet_I2, interpSet_J1, interpSet_J2):
+    shape = tensor.shape
+    dim = len(shape)
+    Union_nested_I = {}
+    Union_nested_J = {}
+
+    # Left to right union (I)
+    for i in range(1, dim):
+        I1 = interpSet_I1[i]
+        I2 = interpSet_I2[i]
+
+
+    # Right to left union (J)
+
+    return Union_nested_I, Union_nested_J
+
+'''
 # PROBLEM ALGORITHM!
 # Assemble tensor cross interpolation by union of interpolation sets I/J
 # Actually the naive union method cannot even work, as there I,J's size at the same mode after union is not same
@@ -468,3 +482,4 @@ def TCI_Union(tensor, I1, J1, I2, J2):
     # Assemble TT-cores from union interpolation sets
     TTCore_cross = cross_core_interp_assemble(tensor, Union_I, Union_J, TTRank)
     return TTCore_cross
+'''
