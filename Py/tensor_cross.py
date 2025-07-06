@@ -444,6 +444,10 @@ def TCI_pivot_accum(tensor, interpSet_I, interpSet_J, new_pivot_i):
     
     return
 
+def Nested_Interp_Reduce():
+    
+    return
+
 def Nested_Interp_Union(tensor, interpSet_I1, interpSet_I2, interpSet_J1, interpSet_J2):
     shape = tensor.shape
     dim = len(shape)

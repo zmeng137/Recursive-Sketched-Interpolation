@@ -17,35 +17,40 @@ def populate_tensor_fromfunction(dims, func):
     return tl.tensor(tensor_data)
 
 def scatter_plot_f1f2(x_tensor, f1_tensor, f2_tensor, g_tensor):
-    scatter = plt.scatter(x_tensor, f1_tensor, 
-                        s=8,          # Point size
-                        alpha=0.8,  
-                        edgecolors='black',  # Point borders
-                        linewidth=0.5,
-                        label='f1')
-    scatter = plt.scatter(x_tensor, f2_tensor, 
-                        s=8,          # Point size
-                        alpha=0.8,  
-                        edgecolors='black',  # Point borders
-                        linewidth=0.5,
-                        label='f2')
-    scatter = plt.scatter(x_tensor, g_tensor, 
-                        s=15,          # Point size
-                        alpha=0.8,  
-                        edgecolors='black',  # Point borders
-                        linewidth=0.5,
-                        label='g')
+    scatter = plt.scatter(x_tensor, f1_tensor, s=8, alpha=0.8, edgecolors='black', linewidth=0.5, label='f1')
+    scatter = plt.scatter(x_tensor, f2_tensor, s=8, alpha=0.8, edgecolors='black', linewidth=0.5, label='f2')
+    scatter = plt.scatter(x_tensor, g_tensor, s=15, alpha=0.8, edgecolors='black', linewidth=0.5, label='g')
     plt.legend()
     plt.savefig("quantics.png")
     return
 
-quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10)
-func1 = lambda t: -0.3 *t ** 6 + 2 * t ** 2 + 0.6 * t - 1 + 0.4 * np.sin(-4 * np.pi * t)
-#t ** 5 - 3 * t ** 3 + 10 * t -6 #5 * np.sin(-2 * np.pi * t) - 3 * np.exp(t)
-func2 = lambda t: 0.6 * t ** 4 - 0.1 * t ** 7 + 5 -1.2 * np.cos(6 * np.pi * t) - 2 * t ** 3 + 4 
-#-10 * np.exp(-(t - 1) * (t - 1) / 2) - 2 * t ** 3 + 4 
-g_func = lambda t: func1(t) * func2(t)
+def union_rows_bounded(A, B, max_rows):
+    A = np.array(A)
+    B = np.array(B)
+    
+    # Find rows in B that are not in A
+    mask = ~np.any(np.all(A[:, None] == B, axis=2), axis=0)
+    new_rows = B[mask]
+    
+    # Calculate how many rows we can add
+    current_rows = len(A)
+    max_new_rows = max_rows - current_rows
+    
+    if max_new_rows <= 0:
+        return A  # Already at or above limit
+    
+    # Take only the first max_new_rows rows (by row order)
+    rows_to_add = new_rows[:max_new_rows]
+    
+    # Concatenate
+    result = np.vstack([A, rows_to_add]) if len(rows_to_add) > 0 else A
+    return result
 
+# Quantics construction
+quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10)
+func1 = lambda t: 1.2 * t ** 6 - 1.2 * np.sqrt(t) - 1 + 0.6 * np.sin(6.3 * np.pi * t)  #t ** 5 - 3 * t ** 3 + 10 * t -6 #5 * np.sin(-2 * np.pi * t) - 3 * np.exp(t)
+func2 = lambda t: -0.6 * t ** 7 - 5 - 0.81 * np.cos(6 * np.pi * t) - 2 * t ** 2 + 4 + np.tan(t)  #-10 * np.exp(-(t - 1) * (t - 1) / 2) - 2 * t ** 3 + 4 
+g_func = lambda t: func1(t) * func2(t)
 shape = (2,2,2,2,2,2,2,2,2,2)
 dim = len(shape)
 x_tensor = populate_tensor_fromfunction(shape, quantic_repres)
@@ -68,19 +73,19 @@ Nested_J_rank1[dim+1] = []
 
 ''' === Tensor cross interpolation for f1, f2, g === '''
 # TCI-2site of f1
-r_max = 3
+r_max = 4
 interp_I_f1, interp_J_f1, TTRank_f1, recon_f1 = TCI_2site(f1_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(f1_tensor - recon_f1) / tl.norm(f1_tensor)
 print(f"Relative error of f1 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of f2
-r_max = 3
+r_max = 4
 interp_I_f2, interp_J_f2, TTRank_f2, recon_f2 = TCI_2site(f2_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
 print(f"Relative error of f2 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of g
-r_max = 4
+r_max = 5
 interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 print(f"Relative error of g QTT at r_max = {r_max}: {error}")
@@ -98,39 +103,80 @@ recon_g_Interpf2 = tl.tt_to_tensor(TT_cores)
 error = tl.norm(g_tensor - recon_g_Interpf2) / tl.norm(g_tensor)
 print(f"Relative error of g QTT (using f2 Interp) at r_max = {r_max}: {error}")
 
-# For the first 
-
 ''' === Plot TCI of g (assembled from f1, f2, g interp) === '''
-# Plot of exact g 
+plt.figure()
 x_axis = np.linspace(0,1,100)
 exact_g = g_func(x_axis)
-plt.plot(x_axis, exact_g, 'r-', linewidth=1, label='Exact g(x)')
+plt.plot(x_axis, exact_g, 'r-', linewidth=1, label='Exact g(x)')  # Plot of exact g  
+plt.scatter(x_tensor, recon_g, s=1, alpha=0.8, linewidth=0.25, label='recon g (TCI g)')  # Plot of reconstruction of TCI of g
+plt.scatter(x_tensor, recon_g_Interpf1, s=1, alpha=0.8, linewidth=0.25, label='recon g (f1 interp)')  # Plot of reconstructed g from f1 interpolation
+plt.scatter(x_tensor, recon_g_Interpf2, s=1, alpha=0.8, linewidth=0.25, label='recon g (f2 interp)')  # Plot of reconstructed g from f2 interpolation
+plt.legend()
+plt.grid()
+plt.savefig("quantics.png")
+pass
 
-# Plot of reconstruction of TCI of g
-scatter = plt.scatter(x_tensor, recon_g, 
-                        s=1,          # Point size
-                        alpha=0.8,  
-                        linewidth=0.25,
-                        label='recon g (TCI g)')
-# Plot of reconstructed g from f1 interpolation
+# Let's try to refine by selecting optimal area of f1 and f2 in interpolation
+# .... I think we still need to do UNION SET to check 
+# First to do: Check if I replace some pivots in f1 with f2's pivots (such as x1=0 x2=0 pivots) and then improve quality
+#refine_interp_I_f1 = interp_I_f1.copy()
+#refine_interp_J_f1 = interp_J_f1.copy()
+#refine_TTRank_f1 = TTRank_f1.copy()
+for m in range(3,7):
+    # Copy lists
+    refine_interp_I_f1 = interp_I_f1.copy()
+    refine_interp_J_f1 = interp_J_f1.copy()
+    refine_TTRank_f1 = TTRank_f1.copy()
+
+    # Union sets
+    I_f1 = interp_I_f1[m]
+    I_f2 = interp_I_f2[m]
+    J_f1 = interp_J_f1[m+1]
+    J_f2 = interp_J_f2[m+1]
+    I_f1 = union_rows_bounded(I_f1, I_f2, 6)
+    J_f1 = union_rows_bounded(J_f1, J_f2, 6)
+    
+    # Refine interpolation
+    refine_interp_I_f1[m] = I_f1
+    refine_interp_J_f1[m+1] = J_f1
+    refine_TTRank_f1[m] = len(I_f1)
+
+    # Reconstruction
+    TT_cross = cross_core_interp_assemble(g_tensor, refine_interp_I_f1, refine_interp_J_f1, refine_TTRank_f1)
+    TT_cores = cross_inv_merge(TT_cross, dim)
+    recon_g_Interpf1 = tl.tt_to_tensor(TT_cores)
+    error = tl.norm(g_tensor - recon_g_Interpf1) / tl.norm(g_tensor)
+    print(f"Union I/J at rank {m}(TTRank bounded at 6) =: {error}")
+    
+
+
+
+
+
+
+
+
+TT_cross = cross_core_interp_assemble(g_tensor, interp_I_f1, interp_J_f1, TTRank_f1)
+TT_cores = cross_inv_merge(TT_cross, dim)
+recon_g_Interpf1 = tl.tt_to_tensor(TT_cores)
+error = tl.norm(g_tensor - recon_g_Interpf1) / tl.norm(g_tensor)
+print(f"REFINE at r_max = {r_max}: {error}")
+
+plt.figure()
+plt.plot(x_axis, exact_g, 'r-', linewidth=1, label='Exact g(x)')
 scatter = plt.scatter(x_tensor, recon_g_Interpf1, 
                         s=1,          # Point size
                         alpha=0.8,  
                         linewidth=0.25,
-                        label='recon g (f1 interp)')
-# Plot of reconstructed g from f2 interpolation
-scatter = plt.scatter(x_tensor, recon_g_Interpf2, 
-                        s=1,          # Point size
-                        alpha=0.8,  
-                        linewidth=0.25,
-                        label='recon g (f2 interp)')
+                        label='recon g (f1 REFINE)')
 plt.legend()
-plt.savefig("quantics.png")
-pass
+plt.grid()
+plt.savefig("quantics1.png")
+
 
 # TCI of QTT g(x)
 # Create initial I,J sets
-r_max = 1
+r_max = 4
 eps = 1e-14
 TTCores, TTCores_Cross_3, TTRank, Nested_I_3, Nested_J_3 = TT_CUR_L2R(g_tensor, r_max, eps)
 recon = tl.tt_to_tensor(TTCores)
