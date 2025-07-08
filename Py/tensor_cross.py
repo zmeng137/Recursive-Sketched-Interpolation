@@ -440,6 +440,7 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
         
     return result_I, result_J, TTRank, recon_t
 
+'''
 def TCI_pivot_accum(tensor, interpSet_I, interpSet_J, new_pivot_i):
     
     return
@@ -459,12 +460,10 @@ def Nested_Interp_Union(tensor, interpSet_I1, interpSet_I2, interpSet_J1, interp
         I1 = interpSet_I1[i]
         I2 = interpSet_I2[i]
 
-
     # Right to left union (J)
 
     return Union_nested_I, Union_nested_J
 
-'''
 # PROBLEM ALGORITHM!
 # Assemble tensor cross interpolation by union of interpolation sets I/J
 # Actually the naive union method cannot even work, as there I,J's size at the same mode after union is not same

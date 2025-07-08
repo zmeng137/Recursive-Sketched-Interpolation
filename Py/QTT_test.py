@@ -49,7 +49,7 @@ error = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
 print(f"Relative error of f2 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of g
-r_max = 6
+r_max = 4
 interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 print(f"Relative error of g QTT at r_max = {r_max}: {error}")
@@ -80,7 +80,52 @@ error_int_2 = np.abs(integral_qten - integral_qtci_2) / np.abs(integral_qten)
 print(f"Relative error of g QTT integral (vs QTensor integral) {error_int_1}, {error_int_2}")
 
 # Try on hierarchical integral method
-m = 5
+m = 6
+
+TT_cross_f1 = cross_core_interp_assemble(f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1)
+TT_cores_f1 = cross_inv_merge(TT_cross_f1, dim)
+integral_qtci_f1 = integral_qtt(TT_cores_f1, m, 1)
+lead_TT_int_f1 = TT_cores_f1[0:(dim-m-1)].copy()
+last_core = TT_cores_f1[dim-m-1] @ integral_qtci_f1.reshape(-1,1)
+lead_TT_int_f1.append(last_core)
+TTint_contract_f1 = tl.tt_to_tensor(lead_TT_int_f1)
+
+TT_cross_f2 = cross_core_interp_assemble(f2_tensor, interp_I_f2, interp_J_f2, TTRank_f2)
+TT_cores_f2 = cross_inv_merge(TT_cross_f2, dim)
+integral_qtci_f2 = integral_qtt(TT_cores_f2, m, 1)
+lead_TT_int_f2 = TT_cores_f2[0:(dim-m-1)].copy()
+last_core = TT_cores_f2[dim-m-1] @ integral_qtci_f2.reshape(-1,1)
+lead_TT_int_f2.append(last_core)
+TTint_contract_f2 = tl.tt_to_tensor(lead_TT_int_f2)
+
+TTint_contract_f1f2 = TTint_contract_f1 * TTint_contract_f2
+
+TT_cross_g = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
+TT_cores_g = cross_inv_merge(TT_cross_g, dim)
+integral_qtci_g = integral_qtt(TT_cores_g, m, 1)
+lead_TT_int_g = TT_cores_g[0:(dim-m-1)].copy()
+last_core = TT_cores_g[dim-m-1] @ integral_qtci_g.reshape(-1,1)
+lead_TT_int_g.append(last_core)
+TTint_contract_g = tl.tt_to_tensor(lead_TT_int_g)
+
+# Produce nested I/J set for shorter dimension
+r_max = 1
+eps = 1e-14
+TTCores, TTCores_Cross, TTRank, Nested_I_rank1, Nested_J_rank1 = TT_CUR_L2R(TTint_contract_f1f2, r_max, eps)
+Assemble_TTCore_Cross = cross_core_interp_assemble(TTint_contract_f1f2, Nested_I_rank1, Nested_J_rank1, TTRank)
+for i in range(2 * len(TTRank) - 3):
+    diff_flag = (Assemble_TTCore_Cross[i] == TTCores_Cross[i]).all()
+    if (diff_flag == False):
+        print(f"Interpolation assembly error at {i}!")
+Nested_I_rank1[0] = []
+Nested_J_rank1[dim-m+1] = []
+r_max = 4
+interp_I_f1f2_TTint, interp_J_f1f2_TTint, TTRank_f1f2_TTint, recon_f1f2_TTint = TCI_2site(TTint_contract_f1f2, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
+error = tl.norm(TTint_contract_f1f2 - recon_f1f2_TTint) / tl.norm(TTint_contract_f1f2)
+print(f"Relative error of g integral QTT at r_max = {r_max}: {error}")
+
+
+''' === When f1=f2, try to use UNION method === '''
 # TODO...
 
 
