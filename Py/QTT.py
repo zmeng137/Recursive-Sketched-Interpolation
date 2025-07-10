@@ -33,12 +33,15 @@ def union_rows_bounded(A, B, max_rows):
     result = np.vstack([A, rows_to_add]) if len(rows_to_add) > 0 else A
     return result
 
-def scatter_plot_f1f2(x_tensor, f1_tensor, f2_tensor, g_tensor):
+def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
     plt.figure()
-    plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
-    plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
     plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
+    if f1_tensor is not None:
+        plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
+    if f2_tensor is not None:
+        plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
     plt.legend()
+    plt.grid()
     plt.savefig("f1_f2_g.png")
     return
 
