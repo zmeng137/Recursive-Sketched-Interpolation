@@ -440,6 +440,10 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
         
     return result_I, result_J, TTRank, recon_t
 
+def TCI_1site_local(tensor, ):
+    
+    return
+
 '''
 def TCI_pivot_accum(tensor, interpSet_I, interpSet_J, new_pivot_i):
     
