@@ -72,5 +72,20 @@ def integral_qtt(QTT, integral_dim, order=0):
             integral = sub_int @ integral
         return integral
 
+def value_query_QTT(QTT, TTRank, pos):
+    dim = len(QTT)
+    interm_core = QTT[0][0,pos[0],:]  # Initial TT-core as the first intermediate core
+    
+    # Fix-index contraction 
+    for p in range(dim-1):
+        free = pos[p+1]
+        left_bond = TTRank[p+1]
+        right_bond = TTRank[p+2]
+        merge = np.zeros(right_bond)
+        for i in range(right_bond):
+            for j in range(left_bond):
+                merge[i] += interm_core[j] * QTT[p+1][j, free, i] 
+        interm_core = merge
+    return interm_core[0]
 
 
