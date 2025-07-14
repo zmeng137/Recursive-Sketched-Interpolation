@@ -33,6 +33,18 @@ def union_rows_bounded(A, B, max_rows):
     result = np.vstack([A, rows_to_add]) if len(rows_to_add) > 0 else A
     return result
 
+def union_rows_bounded_random(A, B, max_rows):
+    # Get unique rows from both arrays
+    C = np.unique(np.vstack([A, B]), axis=0)
+    
+    # If we have more rows than the limit, randomly sample
+    if len(C) > max_rows:
+        # Randomly select indices without replacement
+        selected_indices = np.random.choice(len(C), size=max_rows, replace=False)
+        C = C[selected_indices]
+    
+    return C
+
 def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
     plt.figure()
     plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')

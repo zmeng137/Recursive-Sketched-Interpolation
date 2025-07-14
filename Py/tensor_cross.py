@@ -283,11 +283,6 @@ def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet
             TTCore_cross.append(cross_mat)
     return TTCore_cross
 
-# 1-site tensor cross interpolation for nesting condition and rank compression
-def TCI_1site(tensor, interp_I, interp_J):
-
-    return
-
 # Get the PI tensor (4-order) by slicing the original tensor via interpolation sets  
 def PI_4tensor_slicing(tensor, mode1, mode2, I_set, J_set):
     # Initialize the PI tensor
@@ -439,6 +434,74 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
             break
         
     return result_I, result_J, TTRank, recon_t
+
+def TCI_union_two(tensor_f1, interp_I_1, interp_J_1, tensor_f2, interp_I_2, interp_J_2, mode = 0):
+    # tensor information
+    shape = tensor_f1.shape
+    assert shape == tensor_f2.shape, "Two input tensors should be at same size!"
+    tensor_g = tensor_f1 * tensor_f2  # Let's first assume we know tensor_f1 and tensor_f2 (we actually know everything we need in this function by only TCI format)
+    dim = len(shape)  # Dimension
+    TTRank_new = [1]
+
+    # Iteratively combine interpolation sets
+    interp_I_new = {}
+    interp_J_new = {}
+    for d in range(1, dim):
+        # Interpolation sets
+        I_set_1 = interp_I_1[d]
+        J_set_1 = interp_J_1[d+1]
+        I_set_2 = interp_I_2[d]
+        J_set_2 = interp_J_2[d+1]
+
+        # Union
+        I_union = np.unique(np.vstack([I_set_1, I_set_2]), axis=0)
+        J_union = np.unique(np.vstack([J_set_1, J_set_2]), axis=0)
+        rank_I_union = I_union.shape[0]
+        rank_J_union = J_union.shape[0]
+        max_rank = min(rank_I_union, rank_J_union)
+        TTRank_new.append(max_rank)
+
+        # Check union results
+        if rank_I_union == rank_J_union:
+            interp_I_new[d] = I_union
+            interp_J_new[d+1] = J_union
+        else:
+            # Assemble cross core            
+            interp_I_new[d] = np.empty([max_rank, d]) 
+            interp_J_new[d+1] = np.empty([max_rank, dim-d])
+            cross_mat = np.empty([rank_I_union, rank_J_union])
+            for i in range(rank_I_union):
+                I_slice = I_union[i].astype(int).tolist()
+                for j in range(rank_J_union):
+                    J_slice = J_union[j].astype(int).tolist()
+                    temp = slice_first_modes(tensor_g, I_slice)
+                    cross_mat[i,j] = slice_last_modes(temp, J_slice)
+            # Pivot selection (PRRLDU)
+            if mode == 0:
+                # PRRLU mode
+                _, _, _, _, _, pr, pc, _ = prrldu(cross_mat, 0, max_rank)
+                pr = pr[0:max_rank]
+                pc = pc[0:max_rank]
+                interp_I_new[d] = I_union[pr,:]
+                interp_J_new[d+1] = J_union[pc,:]
+            else:
+                # Random mode
+                if max_rank < rank_I_union:
+                    selected_indices = np.random.choice(rank_I_union, size=max_rank, replace=False)
+                    interp_I_new[d] = I_union[selected_indices,:]
+                    interp_J_new[d+1] = J_union
+                if max_rank < rank_J_union:
+                    selected_indices = np.random.choice(rank_J_union, size=max_rank, replace=False)
+                    interp_I_new[d] = I_union
+                    interp_J_new[d+1] = J_union[selected_indices,:]
+    
+    TTRank_new.append(1)
+    return interp_I_new, interp_J_new, TTRank_new
+
+# 1-site tensor cross interpolation for nesting condition and rank compression
+def TCI_1site(tensor, interp_I, interp_J):
+
+    return
 
 def TCI_1site_local(tensor, ):
     

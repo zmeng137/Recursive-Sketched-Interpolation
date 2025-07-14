@@ -2,10 +2,8 @@ import numpy as np
 import tensorly as tl
 import matplotlib.pyplot as plt
 
-from QTT import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt
-from tt_svd import TT_SVD
-from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cross_inv_merge
-from rank_revealing import prrldu
+from QTT import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt, value_query_QTT
+from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cross_inv_merge, TCI_union_two
 
 ''' === Quantics representation construction === '''
 # Quantics construction
@@ -19,6 +17,7 @@ x_tensor = populate_tensor_fromfunction(shape, quantic_repres)
 f1_tensor = func1(x_tensor)
 f2_tensor = func2(x_tensor)
 g_tensor = f1_tensor * f2_tensor
+
 
 ''' === Create initial (rank-1) interpolation I/J sets === '''
 r_max = 1
@@ -47,7 +46,7 @@ error = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
 print(f"Relative error of f2 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of g
-r_max = 4
+r_max = 9
 interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 print(f"Relative error of g QTT at r_max = {r_max}: {error}")
@@ -65,11 +64,54 @@ recon_g_Interpf2 = tl.tt_to_tensor(TT_cores)
 error = tl.norm(g_tensor - recon_g_Interpf2) / tl.norm(g_tensor)
 print(f"Relative error of g QTT (using f2 Interp) at r_max = {r_max}: {error}\n")
 
+pass
+
+
+''' === Test of union method === '''
+# PRRLU-based UNION method
+interp_I_union_g, interp_J_union_g, TTRank_union = TCI_union_two(f1_tensor, interp_I_f1, interp_J_f1, f2_tensor, interp_I_f2, interp_J_f2, 0)
+TT_cross = cross_core_interp_assemble(g_tensor, interp_I_union_g, interp_J_union_g, TTRank_union)
+TT_cores = cross_inv_merge(TT_cross, dim)
+recon_g_prrluUnion = tl.tt_to_tensor(TT_cores)
+error_prrluUnion = tl.norm(g_tensor - recon_g_prrluUnion) / tl.norm(g_tensor)
+print(f"Recon errror (PRRLU-based UNION Method) =: {error_prrluUnion}")
+
+# Random UNION method
+attempt = np.arange(1,101)
+rel_error_runion = []
+for i in range(len(attempt)):
+    interp_I_union_g, interp_J_union_g, TTRank_union = TCI_union_two(f1_tensor, interp_I_f1, interp_J_f1, f2_tensor, interp_I_f2, interp_J_f2, 1)
+    TT_cross = cross_core_interp_assemble(g_tensor, interp_I_union_g, interp_J_union_g, TTRank_union)
+    TT_cores = cross_inv_merge(TT_cross, dim)
+    recon_g_prrluUnion = tl.tt_to_tensor(TT_cores)
+    error_randUnion = tl.norm(g_tensor - recon_g_prrluUnion) / tl.norm(g_tensor)
+    rel_error_runion.append(error_randUnion)
+rel_error_prrluUnion = np.ones(len(attempt)) * error_prrluUnion
+
+r_max = np.max(TTRank_union)
+interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
+error_prrluTCI = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
+rel_error_TCI = np.ones(len(attempt)) * error_prrluTCI
+
+plt.figure()
+plt.semilogy(attempt, rel_error_runion, label='Random Union', linestyle=':')
+plt.semilogy(attempt, rel_error_prrluUnion, label='PRRLU Union')
+plt.semilogy(attempt, rel_error_TCI, label='PRRLU TCI', linestyle='--')
+plt.grid()
+plt.legend()
+plt.xlabel("Number of attempts")
+plt.ylabel("Relative error")
+plt.savefig("rel_error_union.png")
+
+pass
+
 
 ''' === Test the idea of hierarchical integral === '''
 # test the integral
 TT_cross = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
 TT_cores = cross_inv_merge(TT_cross, dim)
+#pos = [1,0,0,0,0,0,1,1,1,1]
+#val = value_query_QTT(TT_cores, TTRank_g, pos)
 integral_qtci_1 = integral_qtt(TT_cores, dim, 0)
 integral_qtci_2 = integral_qtt(TT_cores, dim, 1)
 integral_qten = g_tensor.sum() / (2**dim)
@@ -78,7 +120,7 @@ error_int_2 = np.abs(integral_qten - integral_qtci_2) / np.abs(integral_qten)
 print(f"Relative error of g QTT integral (vs QTensor integral) {error_int_1}, {error_int_2}")
 
 # Try on hierarchical integral method
-m = 6
+m = 5
 
 TT_cross_f1 = cross_core_interp_assemble(f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1)
 TT_cores_f1 = cross_inv_merge(TT_cross_f1, dim)
@@ -125,8 +167,6 @@ print(f"Relative error of g integral QTT at r_max = {r_max}: {error}")
 
 ''' === Need to write function to query g(x) by access QTT of f1 and f2 (chi square really?) === '''
 
-''' === When f1=f2, try to use UNION method === '''
-# TODO...
 
 
 ''' === Plot TCI of g (assembled from f1, f2, g interp) === '''
