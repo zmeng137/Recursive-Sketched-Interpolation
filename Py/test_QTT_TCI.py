@@ -8,8 +8,9 @@ from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cros
 ''' === Quantics representation construction === '''
 # Quantics construction
 quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10)
-func1 = lambda t: 1.2 * t ** 6 - 1.2 * np.sqrt(t) - 1 + 0.6 * np.sin(6.3 * np.pi * t)  #t ** 5 - 3 * t ** 3 + 10 * t -6 #5 * np.sin(-2 * np.pi * t) - 3 * np.exp(t)
-func2 = lambda t: -0.6 * t ** 7 - 5 - 0.81 * np.cos(6 * np.pi * t) - 2 * t ** 2 + 4 + np.tan(t)  #-10 * np.exp(-(t - 1) * (t - 1) / 2) - 2 * t ** 3 + 4 
+func1 = lambda t: 1.2 * t ** 6 - 1.2 * np.sqrt(t) - 1 + 0.6 * np.sin(10.3 * np.pi * t)  #t ** 5 - 3 * t ** 3 + 10 * t -6 #5 * np.sin(-2 * np.pi * t) - 3 * np.exp(t)
+func2 = lambda t: -1.1 * t ** 7 - 12 + np.exp(3.1*t) - 0.81 * np.cos(6 * np.pi * t) - 2 * t ** 2 + 4 + np.tan(t)  #-10 * np.exp(-(t - 1) * (t - 1) / 2) - 2 * t ** 3 + 4 
+#func1 = lambda t: np.exp((t-0.2)*(t-0.2)/0.001)
 g_func = lambda t: func1(t) * func2(t)
 shape = (2,2,2,2,2,2,2,2,2,2)
 dim = len(shape)
@@ -17,6 +18,8 @@ x_tensor = populate_tensor_fromfunction(shape, quantic_repres)
 f1_tensor = func1(x_tensor)
 f2_tensor = func2(x_tensor)
 g_tensor = f1_tensor * f2_tensor
+scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor, f2_tensor)
+pass
 
 
 ''' === Create initial (rank-1) interpolation I/J sets === '''
@@ -34,7 +37,7 @@ Nested_J_rank1[dim+1] = []
 
 ''' === Tensor cross interpolation for f1, f2, g === '''
 # TCI-2site of f1
-r_max = 5
+r_max = 7
 interp_I_f1, interp_J_f1, TTRank_f1, recon_f1 = TCI_2site(f1_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(f1_tensor - recon_f1) / tl.norm(f1_tensor)
 print(f"Relative error of f1 QTT at r_max = {r_max}: {error}")
@@ -88,7 +91,7 @@ for i in range(len(attempt)):
     rel_error_runion.append(error_randUnion)
 rel_error_prrluUnion = np.ones(len(attempt)) * error_prrluUnion
 
-r_max = np.max(TTRank_union)
+r_max = np.max(TTRank_union)-2
 interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
 error_prrluTCI = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 rel_error_TCI = np.ones(len(attempt)) * error_prrluTCI
