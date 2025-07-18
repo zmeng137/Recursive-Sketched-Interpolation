@@ -2,6 +2,7 @@ import numpy as np
 import tensorly as tl
 from interpolation import interpolative_prrldu, cur_prrldu, cur_prrldu_ninv
 from rank_revealing import prrldu
+from QTT import integral_qtt
 
 # Slice tensor: T[I,:]
 def slice_first_modes(arr, indices):
@@ -222,20 +223,74 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     return TTCore, TTCore_cc, TTRank, InterpSet
 
 # Compute inverse of cross matrices and merge them into TT-cores
-def cross_inv_merge(TTCore_cross, dimension):
-    TTCores = [TTCore_cross[0]]
-    for i in range(dimension-1):
-        core = TTCore_cross[2*i+2]
-        cross = TTCore_cross[2*i+1]
-        core_shape0 = core.shape[0]
-        core_shape1 = core.shape[1]
-        core_shape2 = core.shape[2]    
-        cross_inv = np.linalg.inv(cross)
-        core_reshape = core.reshape(core_shape0,-1)
-        merge = cross_inv @ core_reshape
-        new_core = merge.reshape(core_shape0, core_shape1, core_shape2)
-        TTCores.append(new_core)
-    return TTCores
+def cross_inv_merge(TTCore_cross, dimension, order=0):
+    if order == 0:
+        TTCores = [TTCore_cross[0]]
+        for i in range(dimension-1):
+            core = TTCore_cross[2*i+2]
+            cross = TTCore_cross[2*i+1]
+            core_shape0 = core.shape[0]
+            core_shape1 = core.shape[1]
+            core_shape2 = core.shape[2]    
+            cross_inv = np.linalg.inv(cross)
+            core_reshape = core.reshape(core_shape0,-1)
+            merge = cross_inv @ core_reshape
+            new_core = merge.reshape(core_shape0, core_shape1, core_shape2)
+            TTCores.append(new_core)
+        return TTCores
+    else:
+        TTCores = []
+        for i in range(dimension-1):
+            core = TTCore_cross[2*i]
+            cross = TTCore_cross[2*i+1]
+            cross_inv = np.linalg.inv(cross)
+            new_core = core @ cross_inv
+            TTCores.append(new_core)
+        TTCores.append(TTCore_cross[-1])
+        return TTCores
+
+# Assmeble a single core by interpolation pivots
+def single_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet: dict, TTRank: np.array, core_no: int):
+    shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
+    dim = len(shape)      # Get the number of dimension 
+    assert core_no <= dim-1 and 0 <= core_no, "Query core should be in [0, dim-1]"
+    assert len(TTRank) == dim + 1, "Number of TT-Ranks should equal tensor order + 1, i.e., with rank = 1 at boundaries!"
+    
+    d = core_no
+    core = np.empty([TTRank[d], shape[d], TTRank[d+1]])
+    cross_mat = np.empty([TTRank[d+1], TTRank[d+1]])
+
+    if d == 0:
+        assert TTRank[d+1] == len(J_interpSet[2]), "Interpolation set size != Given rank"
+        for j in range(TTRank[1]):
+            J_slice = J_interpSet[2][j].astype(int).tolist()
+            core[0,:,j] = slice_last_modes(tensor, J_slice) 
+    elif d == dim-1:
+        assert TTRank[d] == len(I_interpSet[d]), "Interpolation set size != Given rank"
+        for i in range(TTRank[dim-1]):
+            I_slice = I_interpSet[d][i].astype(int).tolist()
+            core[i,:,0] = slice_first_modes(tensor, I_slice)
+    else:
+        for i in range(TTRank[d]):
+            I_slice = I_interpSet[d][i].astype(int).tolist()
+            for j in range(TTRank[d+1]):
+                J_slice = J_interpSet[d+2][j].astype(int).tolist()
+                temp = slice_first_modes(tensor, I_slice)
+                core[i,:,j] = slice_last_modes(temp, J_slice)
+
+    # Construct cross matrices
+    if d != dim-1:
+        for i in range(TTRank[d+1]):
+            I_slice = I_interpSet[d+1][i].astype(int).tolist()
+            for j in range(TTRank[d+1]):
+                J_slice = J_interpSet[d+2][j].astype(int).tolist()
+                temp = slice_first_modes(tensor, I_slice)
+                cross_mat[i,j] = slice_last_modes(temp, J_slice)
+        
+        cross_inv = np.linalg.inv(cross_mat)
+        core = core @ cross_inv
+     
+    return core
 
 # Assemble TT-Cores by (fully nested) interpolation pivots 
 def cross_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet: dict, TTRank: np.array):
@@ -422,7 +477,7 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
         # TODO... Not a good convergence check
         # Assemble the tensor train and test convergence (error)
         TT_cross = cross_core_interp_assemble(tensor, result_I, result_J, TTRank)
-        TT_cores = cross_inv_merge(TT_cross, dim)
+        TT_cores = cross_inv_merge(TT_cross, dim, 1)
         recon_t = tl.tt_to_tensor(TT_cores)
         rel_diff = tl.norm(recon_t - tensor) / tl.norm(tensor)
         delta_diff = np.abs(rel_diff - pre_error) / np.abs(pre_error)
@@ -497,6 +552,22 @@ def TCI_union_two(tensor_f1, interp_I_1, interp_J_1, tensor_f2, interp_I_2, inte
     
     TTRank_new.append(1)
     return interp_I_new, interp_J_new, TTRank_new
+
+def TCI_hieintegral_beta(tensor_f1, TCI_cross_f1, interp_I_f1, interp_J_f1, 
+                         tensor_f2, TCI_cross_f2, interp_I_f2, interp_J_f2):
+    shape = tensor_f1.shape
+    assert shape == tensor_f2.shape, "f1 f2 tensors should be at same size!"
+    tensor_g = tensor_f1 * tensor_f2  # Let's first assume we know tensor_f1 and tensor_f2 (we actually know everything we need in this function by only TCI format)
+    dim = len(shape)  # Dimension
+    
+    for d in range(dim-1):
+        pass
+    #TODO...
+
+    return
+
+def TCI_2site_local(r_max, eps):
+    return
 
 # 1-site tensor cross interpolation for nesting condition and rank compression
 def TCI_1site(tensor, interp_I, interp_J):
