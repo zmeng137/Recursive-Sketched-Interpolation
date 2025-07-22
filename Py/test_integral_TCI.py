@@ -63,8 +63,7 @@ TT_cores_f1 = cross_inv_merge(TT_cross_f1, dim, 1)
 TT_cross_f2 = cross_core_interp_assemble(f2_tensor, interp_I_f2, interp_J_f2, TTRank_f2)
 TT_cores_f2 = cross_inv_merge(TT_cross_f2, dim, 1)
 
-# Maximal TT-Rank for target TT after product
-contract_core_number = 4
+
 
 ''' === Test the idea of hierarchical integral === '''
 def hInt_firstTry():
@@ -72,70 +71,68 @@ def hInt_firstTry():
     interp_I_f1_copy = interp_I_f1.copy()
     interp_I_f2_copy = interp_I_f2.copy()
     
+    # Maximal TT-Rank for target TT after product
+    contract_core_number = 4
+    
     # Hierarchical Integral Iteration
     passed_core_number = 0
     while passed_core_number < dim:
         # Do we need to integrate
-        integral_number = dim - passed_core_number - contract_core_number
+        temp = dim - passed_core_number - contract_core_number
+        integral_number = temp if temp > 0 else 0 
         print(f"# integral: {integral_number}, # contraction {contract_core_number}, # passed core {passed_core_number}.")
 
+        # Partially contract TT cores of f1 and f2
+        f1_contraction = single_core_interp_assemble(f1_tensor, interp_I_f1_copy, interp_J_f1, TTRank_f1, passed_core_number)
+        f2_contraction = single_core_interp_assemble(f2_tensor, interp_I_f2_copy, interp_J_f2, TTRank_f2, passed_core_number)
+        for i in range(1, contract_core_number):
+            f1_core = single_core_interp_assemble(f1_tensor, interp_I_f1_copy, interp_J_f1, TTRank_f1, passed_core_number+i)
+            f2_core = single_core_interp_assemble(f2_tensor, interp_I_f2_copy, interp_J_f2, TTRank_f2, passed_core_number+i)
+            f1_contraction = np.tensordot(f1_contraction, f1_core, axes=([len(f1_contraction.shape)-1],[0]))
+            f2_contraction = np.tensordot(f2_contraction, f2_core, axes=([len(f2_contraction.shape)-1],[0]))
+        
         if integral_number > 0:
             # Partially integrate f1 and f2 via QTT
             integral_qtci_f1 = integral_qtt(TT_cores_f1, integral_number, 1)
             integral_qtci_f2 = integral_qtt(TT_cores_f2, integral_number, 1)
-            
-            # Partially contract TT cores of f1 and f2
-            f1_contraction = single_core_interp_assemble(f1_tensor, interp_I_f1_copy, interp_J_f1, TTRank_f1, passed_core_number)
-            f2_contraction = single_core_interp_assemble(f2_tensor, interp_I_f2_copy, interp_J_f2, TTRank_f2, passed_core_number)
-            for i in range(1, contract_core_number):
-                f1_core = single_core_interp_assemble(f1_tensor, interp_I_f1_copy, interp_J_f1, TTRank_f1, passed_core_number+i)
-                f2_core = single_core_interp_assemble(f2_tensor, interp_I_f2_copy, interp_J_f2, TTRank_f2, passed_core_number+i)
-                f1_contraction = np.tensordot(f1_contraction, f1_core, axes=([len(f1_contraction.shape)-1],[0]))
-                f2_contraction = np.tensordot(f2_contraction, f2_core, axes=([len(f2_contraction.shape)-1],[0]))
             f1_contraction = f1_contraction @ integral_qtci_f1.reshape(-1,1)
             f2_contraction = f2_contraction @ integral_qtci_f2.reshape(-1,1) 
 
-            # Hadamard product
-            TTint_contract_f1f2 = f1_contraction * f2_contraction
+        # Hadamard product
+        TTint_contract_f1f2 = f1_contraction * f2_contraction
             
-            # New pivot selection
-            shape_contract_t = TTint_contract_f1f2.shape 
-            mat_row = ma.prod(shape_contract_t[0:2])
-            mat_col = ma.prod(shape_contract_t[2:])
-            TTint_matrix = tl.reshape(TTint_contract_f1f2, [mat_row, mat_col])    
-            _, diag, _, _, _, pr, pc, _ = prrldu(TTint_matrix, eps, 5)
-            rank = len(diag)
+        # New pivot selection
+        shape_contract_t = TTint_contract_f1f2.shape 
+        mat_row = ma.prod(shape_contract_t[0:2])
+        mat_col = ma.prod(shape_contract_t[2:])
+        TTint_matrix = tl.reshape(TTint_contract_f1f2, [mat_row, mat_col])    
+        _, diag, _, _, _, pr, pc, _ = prrldu(TTint_matrix, eps, 5)
+        rank = len(diag)
 
-            # Mapping between r/c selection and tensor index pivots
-            if passed_core_number == 0:
-                interp_I_f1_copy[passed_core_number+1] = np.array(pr).reshape(-1, 1)
-                interp_I_f2_copy[passed_core_number+1] = np.array(pr).reshape(-1, 1)
-            else:
-                I = np.empty([rank, passed_core_number+1])
-                prev_I = interp_I_f1_copy[passed_core_number]
-                for j in range(rank):
-                    p_I_idx = pr[j] // 2
-                    c_i_idx = pr[j] % 2
-                    I[j,0:passed_core_number] = prev_I[p_I_idx]
-                    I[j,passed_core_number] = c_i_idx
-                interp_I_f1_copy[passed_core_number+1] = I
-                interp_I_f2_copy[passed_core_number+1] = I        
-
-            # REMEMBER: update TTRank
-            TTRank_f1[passed_core_number] = interp_I_f1_copy[passed_core_number+1].shape[0]
-            TTRank_f2[passed_core_number] = interp_I_f2_copy[passed_core_number+1].shape[0]
-
+        # Mapping between r/c selection and tensor index pivots
+        if passed_core_number == 0:
+            interp_I_f1_copy[passed_core_number+1] = np.array(pr).reshape(-1, 1)
+            interp_I_f2_copy[passed_core_number+1] = np.array(pr).reshape(-1, 1)
         else:
-            pass       
+            I = np.empty([rank, passed_core_number+1])
+            prev_I = interp_I_f1_copy[passed_core_number]
+            for j in range(rank):
+                p_I_idx = pr[j] // 2
+                c_i_idx = pr[j] % 2
+                I[j,0:passed_core_number] = prev_I[p_I_idx]
+                I[j,passed_core_number] = c_i_idx
+            interp_I_f1_copy[passed_core_number+1] = I
+            interp_I_f2_copy[passed_core_number+1] = I        
 
+        # Update TTRank
+        TTRank_f1[passed_core_number] = interp_I_f1_copy[passed_core_number+1].shape[0]
+        TTRank_f2[passed_core_number] = interp_I_f2_copy[passed_core_number+1].shape[0]
         passed_core_number += 1
-
-    return
-
-
-hInt_firstTry()
-
+        if integral_number == 0:
+            contract_core_number = dim - passed_core_number
+    
+    return interp_I_f1_copy
 
 
-
-
+interp_I_g_new = hInt_firstTry()
+pass
