@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 def populate_tensor_fromfunction(dims, func):
     # Populate tensor using numpy.fromfunction
-    def array_func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
-        return func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10)    
+    def array_func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12):
+        return func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12)    
     
     # Use fromfunction to create the tensor
     tensor_data = np.fromfunction(array_func, dims, dtype=int)
