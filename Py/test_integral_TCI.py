@@ -4,6 +4,7 @@ import math as ma
 import matplotlib.pyplot as plt
 
 from rank_revealing import prrldu
+from interpolation import cur_prrldu
 from QTT import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt, value_query_QTT
 from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cross_inv_merge, TCI_union_two, single_core_interp_assemble
 
@@ -64,19 +65,22 @@ TT_cross_f2 = cross_core_interp_assemble(f2_tensor, interp_I_f2, interp_J_f2, TT
 TT_cores_f2 = cross_inv_merge(TT_cross_f2, dim, 1)
 
 
-
 ''' === Test the idea of hierarchical integral === '''
 def hInt_firstTry():
     # Let's first say how hInt can give optimal I pivots from left side compared with direct TCI
     interp_I_f1_copy = interp_I_f1.copy()
     interp_I_f2_copy = interp_I_f2.copy()
+    interp_J_new = {}
     
     # Maximal TT-Rank for target TT after product
     contract_core_number = 4
     
     # Hierarchical Integral Iteration
     passed_core_number = 0
-    while passed_core_number < dim:
+    r_ = 1
+    Zj_list = []
+    TTRank_new = [1]
+    while passed_core_number < dim-1:
         # Do we need to integrate
         temp = dim - passed_core_number - contract_core_number
         integral_number = temp if temp > 0 else 0 
@@ -106,8 +110,14 @@ def hInt_firstTry():
         mat_row = ma.prod(shape_contract_t[0:2])
         mat_col = ma.prod(shape_contract_t[2:])
         TTint_matrix = tl.reshape(TTint_contract_f1f2, [mat_row, mat_col])    
-        _, diag, _, _, _, pr, pc, _ = prrldu(TTint_matrix, eps, 5)
-        rank = len(diag)
+        #_, diag, _, _, _, pr, pc, _ = prrldu(TTint_matrix, eps, 5)
+        r_subset, c_subset, cross_inv, cross, rank, pr, pc = cur_prrldu(TTint_matrix, 0, 5)
+        Z = c_subset @ cross_inv 
+        Z_core = tl.reshape(c_subset, [r_, 2, rank])
+        Zj_list.append(Z_core)
+        r_ = rank
+        TTRank_new.append(rank)
+        print(f"Tensor contraction {TTint_contract_f1f2.shape} -> Matrix {TTint_matrix.shape} -> rank revealing -> Z core {Z_core.shape}")
 
         # Mapping between r/c selection and tensor index pivots
         if passed_core_number == 0:
@@ -124,15 +134,49 @@ def hInt_firstTry():
             interp_I_f1_copy[passed_core_number+1] = I
             interp_I_f2_copy[passed_core_number+1] = I        
 
+        if passed_core_number == dim - 2:
+            interp_J_new[dim] = np.array(pc).reshape(-1,1) 
+
         # Update TTRank
         TTRank_f1[passed_core_number] = interp_I_f1_copy[passed_core_number+1].shape[0]
         TTRank_f2[passed_core_number] = interp_I_f2_copy[passed_core_number+1].shape[0]
         passed_core_number += 1
         if integral_number == 0:
             contract_core_number = dim - passed_core_number
+    TTRank_new.append(1)
     
-    return interp_I_f1_copy
+    # Now I set is done. Let's try to figure out the J direction\
+    # !! To be discussed here... Use 1-site TCI?
+    pass
+    for i in range(dim-2, 0, -1):
+        ccore = Zj_list[i] 
+        cshape = ccore.shape
+        zmat = tl.reshape(ccore, [cshape[0], cshape[1] * cshape[2]], order='F')
+        _, _, _, _, _, rps, cps, _ = prrldu(zmat, 0, cshape[0]) 
+        curr_dim = cshape[1]
+        prev_J = interp_J_new[i+2]
+        J = np.empty([cshape[0], dim-i])
+        for j in range(cshape[0]):
+            p_J_idx = cps[j] // curr_dim
+            c_J_idx = cps[j] % curr_dim
+            J[j,1:] = prev_J[p_J_idx]
+            J[j,0] = c_J_idx
+        interp_J_new[i+1] = J
+
+    return interp_I_f1_copy, interp_J_new, TTRank_new
 
 
-interp_I_g_new = hInt_firstTry()
+interp_I_g_new, interp_J_g_new, TTRank_g_new = hInt_firstTry()
+
+
+TT_cross_g_TCI = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
+TT_cores_g_TCI = cross_inv_merge(TT_cross_g_TCI, dim, 1)
+error = tl.norm(g_tensor - tl.tt_to_tensor(TT_cores_g_TCI)) / tl.norm(g_tensor)
+print(f"Relative error of g QTT at r_max = {r_max}: {error}")
+
+TT_cross_g_new = cross_core_interp_assemble(g_tensor, interp_I_g_new, interp_J_g_new, TTRank_g_new)
+TT_cores_g_new = cross_inv_merge(TT_cross_g_new, dim, 1)
+error = tl.norm(g_tensor - tl.tt_to_tensor(TT_cores_g_new)) / tl.norm(g_tensor)
+print(f"Relative error of g new at r_max = {r_max}: {error}")
+
 pass
