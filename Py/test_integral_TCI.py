@@ -10,12 +10,12 @@ from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cros
 
 ''' === Quantics representation construction === '''
 # Quantics construction
-quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10)
+quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10) + x11/(2**11) + x12/(2**12)
 func1 = lambda t: 1.2 * t ** 4 - 0.2 * np.sqrt(t) - 1 + 0.6 * np.sin(7.3 * np.pi * t)  #t ** 5 - 3 * t ** 3 + 10 * t -6 #5 * np.sin(-2 * np.pi * t) - 3 * np.exp(t)
 func2 = lambda t: -1.1 * t ** 7 - 12 + np.exp(3.1*t) - 0.81 * np.cos(6 * np.pi * t) - 2 * t ** 2 + 4 + np.tan(t)  #-10 * np.exp(-(t - 1) * (t - 1) / 2) - 2 * t ** 3 + 4 g_func = lambda t: func1(t) * func2(t)
 #func1 = lambda t: 1024 * t**8 * (1-t)**8 * (2*t - 1)**2
 #func2 = lambda t: 4096 * t**10 * (1-t)**10 * (1 - 6*t + 6*t**2)**2
-shape = (2,2,2,2,2,2,2,2,2,2)
+shape = (2,2,2,2,2,2,2,2,2,2,2,2)
 dim = len(shape)
 x_tensor = populate_tensor_fromfunction(shape, quantic_repres)
 f1_tensor = func1(x_tensor)
@@ -74,7 +74,8 @@ def hInt_firstTry():
     
     # Maximal TT-Rank for target TT after product
     contract_core_number = 4
-    
+    max_rank = 6
+
     # Hierarchical Integral Iteration
     passed_core_number = 0
     r_ = 1
@@ -111,12 +112,15 @@ def hInt_firstTry():
         mat_col = ma.prod(shape_contract_t[2:])
         TTint_matrix = tl.reshape(TTint_contract_f1f2, [mat_row, mat_col])    
         #_, diag, _, _, _, pr, pc, _ = prrldu(TTint_matrix, eps, 5)
-        r_subset, c_subset, cross_inv, cross, rank, pr, pc = cur_prrldu(TTint_matrix, 0, 5)
+        r_subset, c_subset, cross_inv, cross, rank, pr, pc = cur_prrldu(TTint_matrix, 0, max_rank)
         Z = c_subset @ cross_inv 
         Z_core = tl.reshape(c_subset, [r_, 2, rank])
         Zj_list.append(Z_core)
+        
         r_ = rank
         TTRank_new.append(rank)
+        TTRank_f1[passed_core_number+1] = rank
+        TTRank_f2[passed_core_number+1] = rank
         print(f"Tensor contraction {TTint_contract_f1f2.shape} -> Matrix {TTint_matrix.shape} -> rank revealing -> Z core {Z_core.shape}")
 
         # Mapping between r/c selection and tensor index pivots
