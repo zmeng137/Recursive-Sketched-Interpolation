@@ -223,7 +223,7 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     return TTCore, TTCore_cc, TTRank, InterpSet
 
 # Compute inverse of cross matrices and merge them into TT-cores
-def cross_inv_merge(TTCore_cross, dimension, order=0):
+def cross_inv_merge(TTCore_cross, dimension, order=0, verbose=0):
     if order == 0:
         TTCores = [TTCore_cross[0]]
         for i in range(dimension-1):
@@ -233,6 +233,10 @@ def cross_inv_merge(TTCore_cross, dimension, order=0):
             core_shape1 = core.shape[1]
             core_shape2 = core.shape[2]    
             cross_inv = np.linalg.inv(cross)
+            if verbose == 1:
+                rinv = cross_inv @ cross - np.identity(cross.shape[0])
+                rerr = tl.norm(rinv) / np.sqrt(cross.shape[0])
+                print(f"Cross inverse matrix quality: {1-rerr}")
             core_reshape = core.reshape(core_shape0,-1)
             merge = cross_inv @ core_reshape
             new_core = merge.reshape(core_shape0, core_shape1, core_shape2)
@@ -244,6 +248,10 @@ def cross_inv_merge(TTCore_cross, dimension, order=0):
             core = TTCore_cross[2*i]
             cross = TTCore_cross[2*i+1]
             cross_inv = np.linalg.inv(cross)
+            if verbose == 1:
+                rinv = cross_inv @ cross - np.identity(cross.shape[0])
+                rerr = tl.norm(rinv) / np.sqrt(cross.shape[0])
+                print(f"Cross inverse matrix quality: {1-rerr}")
             new_core = core @ cross_inv
             TTCores.append(new_core)
         TTCores.append(TTCore_cross[-1])
