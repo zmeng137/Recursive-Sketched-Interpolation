@@ -51,8 +51,8 @@ error = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
 print(f"Relative error of f2 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of g
-r_max = 5
-interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 1e-10, r_max, Nested_I_rank1, Nested_J_rank1)
+r_max = 32
+interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 print(f"Relative error of g QTT at r_max = {r_max}: {error}")
 
@@ -64,6 +64,10 @@ TT_cores_f1 = cross_inv_merge(TT_cross_f1, dim, 1)
 TT_cross_f2 = cross_core_interp_assemble(f2_tensor, interp_I_f2, interp_J_f2, TTRank_f2)
 TT_cores_f2 = cross_inv_merge(TT_cross_f2, dim, 1)
 
+# Assemble g
+TT_cross_g = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
+TT_cores_g = cross_inv_merge(TT_cross_g, dim, 1, 1)
+pass
 
 ''' === Test the idea of hierarchical integral === '''
 def hInt_firstTry():
@@ -74,7 +78,7 @@ def hInt_firstTry():
     
     # Maximal TT-Rank for target TT after product
     contract_core_number = 4
-    max_rank = 6
+    max_rank = 7
 
     # Hierarchical Integral Iteration
     passed_core_number = 0
@@ -169,9 +173,8 @@ def hInt_firstTry():
 
     return interp_I_f1_copy, interp_J_new, TTRank_new
 
-
+# Get new g's I, J sets from f1 TCI and f2 TCI via the integral method
 interp_I_g_new, interp_J_g_new, TTRank_g_new = hInt_firstTry()
-
 
 TT_cross_g_TCI = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
 TT_cores_g_TCI = cross_inv_merge(TT_cross_g_TCI, dim, 1)
@@ -182,5 +185,23 @@ TT_cross_g_new = cross_core_interp_assemble(g_tensor, interp_I_g_new, interp_J_g
 TT_cores_g_new = cross_inv_merge(TT_cross_g_new, dim, 1)
 error = tl.norm(g_tensor - tl.tt_to_tensor(TT_cores_g_new)) / tl.norm(g_tensor)
 print(f"Relative error of g new at r_max = {r_max}: {error}")
-
 pass
+
+
+# Plot numerical results
+max_rank_selection = [2,3,4,5,6,7,8]
+rel_error_TCI_g = [0.520864190136914, 0.03966724245907183, 0.004886637158714055, 0.0018037501097730444, 0.0001464877298119697, 2.497528838719393e-05, 1.612080644777001e-05]
+rel_error_INT_g = [0.387611297071045, 0.03474862630575235, 0.007601452070678471, 0.0021256243069158304, 0.0002251037306136618, 2.463364284198022e-05, 0.013284752015896135]
+max_rank_union = [4, 7]
+rel_error_UNI_g = [0.016386594417341145, 0.0001748485620257831]
+
+plt.figure()
+plt.scatter(max_rank_union, rel_error_UNI_g, label="Union-prrlu-f1f2", marker='o',color='green')
+plt.scatter(max_rank_selection, rel_error_INT_g, label="Integral-Contraction-f1f2", marker='s',color='red')
+plt.scatter(max_rank_selection, rel_error_TCI_g, label="TCI-prrlu-2site", marker='x',color='blue')
+plt.yscale("log")
+plt.grid()
+plt.legend()
+plt.xlabel("TT-Rank")
+plt.ylabel("Relative difference from the real f1xf2")
+plt.savefig("relerr_UNI_vs_TCI_vs_INT.png")
