@@ -51,7 +51,7 @@ error = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
 print(f"Relative error of f2 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of g
-r_max = 32
+r_max = 7
 interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
 error = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 print(f"Relative error of g QTT at r_max = {r_max}: {error}")
@@ -64,9 +64,27 @@ TT_cores_f1 = cross_inv_merge(TT_cross_f1, dim, 1)
 TT_cross_f2 = cross_core_interp_assemble(f2_tensor, interp_I_f2, interp_J_f2, TTRank_f2)
 TT_cores_f2 = cross_inv_merge(TT_cross_f2, dim, 1)
 
-# Assemble g
-TT_cross_g = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
-TT_cores_g = cross_inv_merge(TT_cross_g, dim, 1, 1)
+''' === Limitation of RED - Reconstruction, Evaluation, Decomposition === '''
+def red_test():
+    print("=== Limitation of RED - Reconstruction, Evaluation, Decomposition ===")
+
+    rerr_f1 = tl.norm(f1_tensor - recon_f1) / tl.norm(f1_tensor)
+    print(f"||f1 TCI - f1 tensor|| / ||f1 tensor|| = {rerr_f1}")   
+    
+    rerr_f2 = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
+    print(f"||f2 TCI - f2 tensor|| / ||f2 tensor|| = {rerr_f2}")
+
+    red_f1f2 = recon_f1 * recon_f2
+    rerr_f1f2 = tl.norm(red_f1f2- g_tensor) / tl.norm(g_tensor)
+    print(f"||f1 TCI x f2 TCI - f1 tensor x f2 tensor|| / ||f1 tensor x f2 tensor|| = {rerr_f1f2}")
+    
+    for r_max in range(2,9):
+        interp_I_f1f2, interp_J_f1f2, TTRank_f1f2, recon_f1f2 = TCI_2site(red_f1f2, 0, r_max, Nested_I_rank1, Nested_J_rank1)
+        error = tl.norm(recon_f1f2 - g_tensor) / tl.norm(g_tensor)
+        print(f"Relative error of g RED at r_max = {r_max}: {error}")    
+    return
+
+red_test()
 pass
 
 ''' === Test the idea of hierarchical integral === '''
@@ -190,15 +208,22 @@ pass
 
 # Plot numerical results
 max_rank_selection = [2,3,4,5,6,7,8]
-rel_error_TCI_g = [0.520864190136914, 0.03966724245907183, 0.004886637158714055, 0.0018037501097730444, 0.0001464877298119697, 2.497528838719393e-05, 1.612080644777001e-05]
+rel_error_TCI_g = [0.518606738251041, 0.03929485422630780, 0.005080629328349756, 0.0022383885452628596, 0.0001335697037330801, 6.460937515610282e-05, 5.4462581444022203e-05]
 rel_error_INT_g = [0.387611297071045, 0.03474862630575235, 0.007601452070678471, 0.0021256243069158304, 0.0002251037306136618, 2.463364284198022e-05, 0.013284752015896135]
 max_rank_union = [4, 7]
 rel_error_UNI_g = [0.016386594417341145, 0.0001748485620257831]
 
 plt.figure()
-plt.scatter(max_rank_union, rel_error_UNI_g, label="Union-prrlu-f1f2", marker='o',color='green')
-plt.scatter(max_rank_selection, rel_error_INT_g, label="Integral-Contraction-f1f2", marker='s',color='red')
-plt.scatter(max_rank_selection, rel_error_TCI_g, label="TCI-prrlu-2site", marker='x',color='blue')
+plt.scatter(max_rank_union, rel_error_UNI_g, label="Union-prrlu-f1f2", marker='o',color='orange')
+plt.scatter(max_rank_selection, rel_error_INT_g, label="Integral-Contraction-f1f2", marker='s',color='green')
+plt.scatter(max_rank_selection, rel_error_TCI_g, label="TCI-prrlu-2site (RED)", marker='x',color='red')
+plt.annotate("outlier here, due to\nunstable matrix inversion", 
+             xy=(8, rel_error_INT_g[6]),  # Point to annotate (rank=8, corresponding error)
+             xytext=(7.2, 0.05),          # Position of the text
+             arrowprops=dict(arrowstyle='->', color='red', lw=1.5),
+             fontsize=10,
+             color='red',
+             ha='center')
 plt.yscale("log")
 plt.grid()
 plt.legend()
