@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 import tensorly as tl
 import matplotlib.pyplot as plt
 
@@ -10,6 +11,32 @@ def populate_tensor_fromfunction(dims, func):
     # Use fromfunction to create the tensor
     tensor_data = np.fromfunction(array_func, dims, dtype=int)
     return tl.tensor(tensor_data)
+
+def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
+    plt.figure()
+    plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
+    if f1_tensor is not None:
+        plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
+    if f2_tensor is not None:
+        plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
+    plt.legend()
+    plt.grid()
+    plt.savefig("f1_f2_g.png")
+    return
+
+def QTT_Generation(func, digit):
+    shape = tuple([2] * digit)   # Tensor shape 2^n
+    x_tensor = np.zeros(shape)   # Quantics x tensor
+    f_tensor = np.zeros(shape)   # Quantics function 
+    
+    # Generate all possible combinations of indices (0,1) for n dimensions
+    for indices in itertools.product([0, 1], repeat = digit):
+        # Calculate the value using the formula: x1/2 + x2/2^2 + ... + xn/2^n
+        value = sum(x / (2 ** (i + 1)) for i, x in enumerate(indices))
+        x_tensor[indices] = value
+        f_tensor[indices] = func(value)
+    
+    return x_tensor, f_tensor
 
 def union_rows_bounded(A, B, max_rows):
     A = np.array(A)
@@ -45,18 +72,6 @@ def union_rows_bounded_random(A, B, max_rows):
     
     return C
 
-def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
-    plt.figure()
-    plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
-    if f1_tensor is not None:
-        plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
-    if f2_tensor is not None:
-        plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
-    plt.legend()
-    plt.grid()
-    plt.savefig("f1_f2_g.png")
-    return
-
 def integral_qtt(QTT, integral_dim, order=0):
     tensor_dim = len(QTT)
     assert integral_dim <= tensor_dim, "integral dimension should be smaller than or equal to tensor dimension" 
@@ -84,6 +99,15 @@ def integral_qtt(QTT, integral_dim, order=0):
             integral = sub_int @ integral
         return integral
 
+def Qintegral_TT(QTT):
+    dim = len(QTT)   # Number of TT-cores
+    TT_int = []      # Integral TT
+    for i in range(dim):
+        core = QTT[i]
+        int_core = 0.5 * core[:,0,:] + 0.5 * core[:,1,:]
+        TT_int.append(int_core) 
+    return TT_int
+    
 def value_query_QTT(QTT, TTRank, pos):
     dim = len(QTT)
     interm_core = QTT[0][0,pos[0],:]  # Initial TT-core as the first intermediate core
@@ -100,4 +124,8 @@ def value_query_QTT(QTT, TTRank, pos):
         interm_core = merge
     return interm_core[0]
 
-
+Function_Collection = {}
+Function_Collection[1] = lambda x: 1.2 * x ** 4 - 0.2 * np.sqrt(x) - 1 + 0.6 * np.sin(7.3 * np.pi * x)  
+Function_Collection[2] = lambda x: -1.1 * x ** 7 - 12 + np.exp(3.1 * x) - 0.81 * np.cos(6 * np.pi * x) - 2 * x ** 2 + 4 + np.tan(x) 
+Function_Collection[3] = lambda x: 3 * np.exp(- (x - 1) * (x - 1) / (2 * 0.3 * 0.3))
+Function_Collection[4] = lambda x: 3 * np.exp(- (x - 0) * (x - 0) / (2 * 0.3 * 0.3))
