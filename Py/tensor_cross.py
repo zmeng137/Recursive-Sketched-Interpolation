@@ -574,6 +574,20 @@ def TCI_hieintegral_beta(tensor_f1, TCI_cross_f1, interp_I_f1, interp_J_f1,
 
     return
 
+def Rank1_Nested_initIJ_gen(tensor):
+    dim = len(tensor.shape)
+    r_max = 1
+    eps = 0
+    TTCores, TTCores_Cross, TTRank, Nested_I_rank1, Nested_J_rank1 = TT_CUR_L2R(tensor, r_max, eps)
+    Assemble_TTCore_Cross = cross_core_interp_assemble(tensor, Nested_I_rank1, Nested_J_rank1, TTRank)
+    for i in range(2 * len(TTRank) - 3):
+        diff_flag = (Assemble_TTCore_Cross[i] == TTCores_Cross[i]).all()
+        if (diff_flag == False):
+            print(f"Interpolation assembly error at {i}!")
+    Nested_I_rank1[0] = []
+    Nested_J_rank1[dim+1] = []
+    return Nested_I_rank1, Nested_J_rank1
+
 def TCI_2site_local(r_max, eps):
     return
 
