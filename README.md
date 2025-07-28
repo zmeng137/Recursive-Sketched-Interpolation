@@ -1,2 +1,2 @@
-# CIST
-Cross Interpolation Learning for Sparse Tensors
+# QTTM
+Quantics Tensor Train Multiplication
