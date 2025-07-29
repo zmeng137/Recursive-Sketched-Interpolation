@@ -16,6 +16,24 @@ def slice_last_modes(arr, indices):
     slicing = tuple(slice(None) for _ in range(arr.ndim - len(indices))) + tuple(indices)
     return arr[slicing] 
 
+# Stably merge the cross inverse into the left TT-core (How about LU?)
+def coreinv_qr(tensor_core, r_pivot):
+    t_shape = tensor_core.shape
+    mrow = t_shape[0] * t_shape[1]
+    mcol = t_shape[2]
+    core_mat = tl.reshape(tensor_core, [mrow, mcol])
+    
+    # QR decomposition of the TT-core (for stable inversion, could be replaced by LU)
+    Q, _ = np.linalg.qr(core_mat)
+    
+    # T = Q @ Q[pr,:]^-1. May could be more efficient
+    mask = ~np.isin(np.arange(mrow), r_pivot) 
+    core_mat[mask] = Q[mask] @ np.linalg.inv(Q[r_pivot, :])
+    core_mat[r_pivot, :] = np.identity(mcol)
+    
+    tensor_core = tl.reshape(core_mat, t_shape)
+    return tensor_core
+
 # PRRLU-based Tensor-Train Interpolative Decomposition
 def TT_IDPRRLDU(tensorX: tl.tensor, r_max: int, eps: float, verbose: int = 0) -> list[tl.tensor]:
     shape = tensorX.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
@@ -257,7 +275,19 @@ def cross_inv_merge(TTCore_cross, dimension, order=0, verbose=0):
         TTCores.append(TTCore_cross[-1])
         return TTCores
 
+# A more stable version of cross_inv_merge (using QR-based inverse)
+def cross_inv_merge_stable(TTCore_cross, Pr_set):
+    dimension = len(Pr_set) + 1
+    TTCores = []
+    for i in range(dimension-1):
+        core = TTCore_cross[2*i]
+        new_core = coreinv_qr(core, Pr_set[i+1])  # Use QR-based inverse
+        TTCores.append(new_core)
+    TTCores.append(TTCore_cross[-1])
+    return TTCores
+
 # Assmeble a single core by interpolation pivots
+# TO BE MODIFIED: INVERSE PROBLEM
 def single_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSet: dict, TTRank: np.array, core_no: int):
     shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
     dim = len(shape)      # Get the number of dimension 
@@ -380,7 +410,7 @@ def PI_4tensor_slicing(tensor, mode1, mode2, I_set, J_set):
                 PI_4tensor[i,:,:,j] = slice_last_modes(temp, j_idx)
     return PI_4tensor
 
-def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
+def TCI_2site(tensor, eps, tt_rmax, interp_I, interp_J, cvg_check = 0):
     # tensor information
     shape = tensor.shape
     dim = len(shape)  # Let's say dim=L, then I is from 1 to L-1, J is from 2 to L
@@ -392,6 +422,10 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
         pass
     result_I = interp_I.copy()
     result_J = interp_J.copy()
+
+    # Here we also record the matrix-wise pivots for every core
+    pr_set = {}  
+    pc_set = {}  
 
     # TCI sweep iteration
     iter_flag = True
@@ -457,6 +491,8 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
             TTRank[l-1] = rank
             pr = pr[0:rank]
             pc = pc[0:rank]
+            pr_set[l-1] = pr  # Store row pivots
+            pc_set[l] = pc  # Store column pivots
 
             # Map pr, pc to I, J
             if l == dim:
@@ -481,21 +517,24 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I = None, interp_J = None):
                     I[i,0:l-2] = prev_I[p_I_idx]
                     I[i,l-2] = c_I_idx
                 result_I[l-1] = I
-            
+    
         # TODO... Not a good convergence check
         # Assemble the tensor train and test convergence (error)
         TT_cross = cross_core_interp_assemble(tensor, result_I, result_J, TTRank)
-        TT_cores = cross_inv_merge(TT_cross, dim, 1)
-        recon_t = tl.tt_to_tensor(TT_cores)
-        rel_diff = tl.norm(recon_t - tensor) / tl.norm(tensor)
-        delta_diff = np.abs(rel_diff - pre_error) / np.abs(pre_error)
-        print(f"Iteration {iter} - relative error: {rel_diff}, delta error: {delta_diff}, TTRank: {TTRank}")
-        pre_error = rel_diff
+        TT_cores = cross_inv_merge_stable(TT_cross, pr_set)
+        if cvg_check == 0:
+            recon_t = tl.tt_to_tensor(TT_cores)
+            rel_diff = tl.norm(recon_t - tensor) / tl.norm(tensor)
+            delta_diff = np.abs(rel_diff - pre_error) / np.abs(pre_error)
+            print(f"Iteration {iter} - relative error: {rel_diff}, delta error: {delta_diff}, TTRank: {TTRank}")
+            pre_error = rel_diff
+            if delta_diff < 1e-8:
+                break
+        # TODO... A new convergence check
+        #else:
+             
         iter += 1
 
-        if delta_diff < 1e-8:
-            break
-        
     return result_I, result_J, TTRank, recon_t
 
 def TCI_union_two(tensor_f1, interp_I_1, interp_J_1, tensor_f2, interp_I_2, interp_J_2, mode = 0):
@@ -561,19 +600,7 @@ def TCI_union_two(tensor_f1, interp_I_1, interp_J_1, tensor_f2, interp_I_2, inte
     TTRank_new.append(1)
     return interp_I_new, interp_J_new, TTRank_new
 
-def TCI_hieintegral_beta(tensor_f1, TCI_cross_f1, interp_I_f1, interp_J_f1, 
-                         tensor_f2, TCI_cross_f2, interp_I_f2, interp_J_f2):
-    shape = tensor_f1.shape
-    assert shape == tensor_f2.shape, "f1 f2 tensors should be at same size!"
-    tensor_g = tensor_f1 * tensor_f2  # Let's first assume we know tensor_f1 and tensor_f2 (we actually know everything we need in this function by only TCI format)
-    dim = len(shape)  # Dimension
-    
-    for d in range(dim-1):
-        pass
-    #TODO...
-
-    return
-
+# Generate TT-rank=1 initial nested interpolation sets for tensor cross interpolation
 def Rank1_Nested_initIJ_gen(tensor):
     dim = len(tensor.shape)
     r_max = 1
@@ -588,9 +615,6 @@ def Rank1_Nested_initIJ_gen(tensor):
     Nested_J_rank1[dim+1] = []
     return Nested_I_rank1, Nested_J_rank1
 
-def TCI_2site_local(r_max, eps):
-    return
-
 # 1-site tensor cross interpolation for nesting condition and rank compression
 def TCI_1site(tensor, interp_I, interp_J):
 
@@ -599,50 +623,3 @@ def TCI_1site(tensor, interp_I, interp_J):
 def TCI_1site_local(tensor, ):
     
     return
-
-'''
-def TCI_pivot_accum(tensor, interpSet_I, interpSet_J, new_pivot_i):
-    
-    return
-
-def Nested_Interp_Reduce():
-    
-    return
-
-def Nested_Interp_Union(tensor, interpSet_I1, interpSet_I2, interpSet_J1, interpSet_J2):
-    shape = tensor.shape
-    dim = len(shape)
-    Union_nested_I = {}
-    Union_nested_J = {}
-
-    # Left to right union (I)
-    for i in range(1, dim):
-        I1 = interpSet_I1[i]
-        I2 = interpSet_I2[i]
-
-    # Right to left union (J)
-
-    return Union_nested_I, Union_nested_J
-
-# PROBLEM ALGORITHM!
-# Assemble tensor cross interpolation by union of interpolation sets I/J
-# Actually the naive union method cannot even work, as there I,J's size at the same mode after union is not same
-def TCI_Union(tensor, I1, J1, I2, J2):
-    shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
-    dim = len(shape)      # Get the number of dimension 
-    TTRank = [1]          # TTRank list [1,...,1]
-    TTCore_cross = []     # TCI list
-    
-    # Union of I1 and I2, J1 and J2
-    Union_I = {}
-    Union_J = {}
-    for d in range(dim-1):
-        Union_I[d+1] = np.unique(np.vstack([I1[d+1], I2[d+1]]), axis=0)
-        Union_J[d+2] = np.unique(np.vstack([J1[d+2], J2[d+2]]), axis=0)
-        TTRank.append(Union_I[d+1].shape[0])
-    TTRank.append(1)
-    # PROBELM!
-    # Assemble TT-cores from union interpolation sets
-    TTCore_cross = cross_core_interp_assemble(tensor, Union_I, Union_J, TTRank)
-    return TTCore_cross
-'''
