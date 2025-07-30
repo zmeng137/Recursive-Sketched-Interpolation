@@ -3,6 +3,7 @@ import itertools
 import tensorly as tl
 import matplotlib.pyplot as plt
 
+# Populate tensor using numpy.fromfunction
 def populate_tensor_fromfunction(dims, func):
     # Populate tensor using numpy.fromfunction
     def array_func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12):
@@ -12,6 +13,7 @@ def populate_tensor_fromfunction(dims, func):
     tensor_data = np.fromfunction(array_func, dims, dtype=int)
     return tl.tensor(tensor_data)
 
+# Scatter plot for f1, f2, g
 def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
     plt.figure()
     plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
@@ -24,7 +26,8 @@ def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
     plt.savefig("f1_f2_g.png")
     return
 
-def QTT_Generation(func, digit):
+# Generate quantics representation of a continuous function
+def quantics_generation(func, digit):
     shape = tuple([2] * digit)   # Tensor shape 2^n
     x_tensor = np.zeros(shape)   # Quantics x tensor
     f_tensor = np.zeros(shape)   # Quantics function 
@@ -38,6 +41,17 @@ def QTT_Generation(func, digit):
     
     return x_tensor, f_tensor
 
+# Contract two adjacent TT-cores
+def adj_ttcore_contract(core1, core2):
+    if core1.shape[2] != core2.shape[0]:
+        raise ValueError(f"Incompatible shapes: core1 rank {core1.shape[2]} != core2 rank {core2.shape[0]}")
+    
+    # Perform the contraction via einsum
+    contracted = np.einsum('air,rjb->aijb', core1, core2)
+    
+    return contracted
+
+# Union rows of two arrays with a maximum row limit
 def union_rows_bounded(A, B, max_rows):
     A = np.array(A)
     B = np.array(B)
@@ -58,8 +72,10 @@ def union_rows_bounded(A, B, max_rows):
     
     # Concatenate
     result = np.vstack([A, rows_to_add]) if len(rows_to_add) > 0 else A
+
     return result
 
+# Union rows of two arrays with a maximum row limit, randomly sampling if necessary
 def union_rows_bounded_random(A, B, max_rows):
     # Get unique rows from both arrays
     C = np.unique(np.vstack([A, B]), axis=0)
@@ -72,33 +88,28 @@ def union_rows_bounded_random(A, B, max_rows):
     
     return C
 
-def integral_qtt(QTT, integral_dim, order=0):
+# Integrate the QTT (right to left) in a given digit number
+def integral_qtt(QTT, integral_dim):
     tensor_dim = len(QTT)
     assert integral_dim <= tensor_dim, "integral dimension should be smaller than or equal to tensor dimension" 
     
-    if order == 0:  # Left to right integral
-        # Compute the first integral
-        first_core = QTT[0]
-        integral = 0.5 * first_core[:,0,:] + 0.5 * first_core[:,1,:]
-        
-        # Compute the following integral
-        for i in range(1, integral_dim):
-            core = QTT[i]
-            sub_int = 0.5 * core[:,0,:] + 0.5 * core[:,1,:]
-            integral = integral @ sub_int
-        return integral        
-    else:
-        # Compute the last integral
-        last_core = QTT[-1]
-        integral = 0.5 * last_core[:,0,:] + 0.5 * last_core[:,1,:]
+    # Compute the last integral
+    last_core = QTT[-1]
+    integral = 0.5 * last_core[:,0,:] + 0.5 * last_core[:,1,:]
 
-        # Compute the following integral
-        for i in range(tensor_dim - 2, tensor_dim - integral_dim - 1, -1):
-            core = QTT[i]
-            sub_int = 0.5 * core[:,0,:] + 0.5 * core[:,1,:]
-            integral = sub_int @ integral
-        return integral
+    # Compute the following integral
+    for i in range(tensor_dim - 2, tensor_dim - integral_dim - 1, -1):
+        core = QTT[i]
+        sub_int = 0.5 * core[:,0,:] + 0.5 * core[:,1,:]
+        integral = sub_int @ integral
+    
+    # Newly-integrated QTT
+    QTT_new = QTT[0: tensor_dim - integral_dim].copy()
+    QTT_new[-1] = QTT_new[-1] @ integral.reshape(-1, 1)
 
+    return QTT_new
+
+# Integrate the QTT: Only contract the integral tensor with every core, but no TT contraction
 def Qintegral_TT(QTT):
     dim = len(QTT)   # Number of TT-cores
     TT_int = []      # Integral TT
@@ -107,7 +118,8 @@ def Qintegral_TT(QTT):
         int_core = 0.5 * core[:,0,:] + 0.5 * core[:,1,:]
         TT_int.append(int_core) 
     return TT_int
-    
+
+# Query a value of a function from its QTT at a specific position    
 def value_query_QTT(QTT, TTRank, pos):
     dim = len(QTT)
     interm_core = QTT[0][0,pos[0],:]  # Initial TT-core as the first intermediate core
