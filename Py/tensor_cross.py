@@ -18,6 +18,7 @@ def slice_last_modes(arr, indices):
 
 # Stably merge the cross inverse into the left TT-core (How about LU?)
 def coreinv_qr(tensor_core, r_pivot):
+    # Reshape the TT-core to a matrix
     t_shape = tensor_core.shape
     mrow = t_shape[0] * t_shape[1]
     mcol = t_shape[2]
@@ -31,6 +32,7 @@ def coreinv_qr(tensor_core, r_pivot):
     core_mat[mask] = Q[mask] @ np.linalg.inv(Q[r_pivot, :])
     core_mat[r_pivot, :] = np.identity(mcol)
     
+    # Reshape the matrix back to tensor core
     tensor_core = tl.reshape(core_mat, t_shape)
     return tensor_core
 
@@ -298,6 +300,7 @@ def single_core_interp_assemble(tensor: tl.tensor, I_interpSet: dict, J_interpSe
     core = np.empty([TTRank[d], shape[d], TTRank[d+1]])
     cross_mat = np.empty([TTRank[d+1], TTRank[d+1]])
 
+    # Construct TT-cores
     if d == 0:
         assert TTRank[d+1] == len(J_interpSet[2]), "Interpolation set size != Given rank"
         for j in range(TTRank[1]):
@@ -535,7 +538,8 @@ def TCI_2site(tensor, eps, tt_rmax, interp_I, interp_J, cvg_check = 0):
              
         iter += 1
 
-    return result_I, result_J, TTRank, recon_t
+    TT_cross = cross_core_interp_assemble(tensor, result_I, result_J, TTRank)
+    return TT_cross, TT_cores, TTRank, pr_set, pc_set, result_I, result_J
 
 def TCI_union_two(tensor_f1, interp_I_1, interp_J_1, tensor_f2, interp_I_2, interp_J_2, mode = 0):
     # tensor information
