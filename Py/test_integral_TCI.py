@@ -1,21 +1,19 @@
 import numpy as np
 import tensorly as tl
-import math as ma
 import matplotlib.pyplot as plt
 
-from rank_revealing import prrldu
-from interpolation import cur_prrldu
-from QTT import populate_tensor_fromfunction, QTT_Generation, union_rows_bounded, scatter_plot_f1f2, integral_qtt, value_query_QTT, Function_Collection
-from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cross_inv_merge, TCI_union_two, single_core_interp_assemble, Rank1_Nested_initIJ_gen
-from QTTM import QTTM_INTCONT
+from QTT import quantics_generation, scatter_plot_f1f2
+from tensor_cross import cross_core_interp_assemble, TCI_2site, cross_inv_merge_stable, Rank1_Nested_initIJ_gen
+from QTTM import QTTM_INTCONT, QTTM_INTCONT_NOEVAL
+from functions import Function_Collection
 
 ''' === Quantics representation construction === '''
 # Quantics construction
-func1 = Function_Collection[3]
-func2 = Function_Collection[4]
+func1 = Function_Collection[1]
+func2 = Function_Collection[2]
 dim = 12
-x_tensor, f1_tensor = QTT_Generation(func1, dim)
-_, f2_tensor = QTT_Generation(func2, dim)
+x_tensor, f1_tensor = quantics_generation(func1, dim)
+_,        f2_tensor = quantics_generation(func2, dim)
 g_tensor = f1_tensor * f2_tensor
 scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor, f2_tensor)
 
@@ -24,39 +22,46 @@ scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor, f2_tensor)
 Nested_I_rank1, Nested_J_rank1 = Rank1_Nested_initIJ_gen(f1_tensor)
 
 # TCI-2site of f1
-r_max = 4
-interp_I_f1, interp_J_f1, TTRank_f1, recon_f1 = TCI_2site(f1_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
+eps = 1e-8
+r_max = 5
+TT_cross_f1, TT_cores_f1, TTRank_f1, pr_set_f1, pc_set_f1, interp_I_f1, interp_J_f1 = TCI_2site(f1_tensor, eps, r_max, Nested_I_rank1, Nested_J_rank1)
+recon_f1 = tl.tt_to_tensor(TT_cores_f1)
 error = tl.norm(f1_tensor - recon_f1) / tl.norm(f1_tensor)
 print(f"Relative error of f1 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of f2
-r_max = 4
-interp_I_f2, interp_J_f2, TTRank_f2, recon_f2 = TCI_2site(f2_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
+r_max = 5
+TT_cross_f2, TT_cores_f2, TTRank_f2, pr_set_f2, pc_set_f2, interp_I_f2, interp_J_f2 = TCI_2site(f2_tensor, eps, r_max, Nested_I_rank1, Nested_J_rank1)
+recon_f2 = tl.tt_to_tensor(TT_cores_f2)
 error = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
 print(f"Relative error of f2 QTT at r_max = {r_max}: {error}")
 
 # TCI-2site of g
-r_max = 4
-interp_I_g, interp_J_g, TTRank_g, recon_g = TCI_2site(g_tensor, 0, r_max, Nested_I_rank1, Nested_J_rank1)
+r_max = 6
+TT_cross_g, TT_cores_g, TTRank_g, pr_set_g, pc_set_g, interp_I_g, interp_J_g = TCI_2site(g_tensor, eps, r_max, Nested_I_rank1, Nested_J_rank1)
+recon_g = tl.tt_to_tensor(TT_cores_g)
 error = tl.norm(g_tensor - recon_g) / tl.norm(g_tensor)
 print(f"Relative error of g QTT at r_max = {r_max}: {error}")
 
 # Get new g's I, J sets from f1 TCI and f2 TCI via the integral method
-interp_I_g_new, interp_J_g_new, TTRank_g_new, Zj_list = QTTM_INTCONT(f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1,
-             f2_tensor, interp_I_f2, interp_J_f2, TTRank_f2,
-             3, 4, dim)
+interp_I_g_new, interp_J_g_new, TTRank_g_new, TT_cores_g_new = QTTM_INTCONT_NOEVAL(
+            TT_cores_f1, interp_I_f1, interp_J_f1, TTRank_f1,
+            TT_cores_f2, interp_I_f2, interp_J_f2, TTRank_f2,
+            4, 8, eps)
 
-TT_cross_g_TCI = cross_core_interp_assemble(g_tensor, interp_I_g, interp_J_g, TTRank_g)
-TT_cores_g_TCI = cross_inv_merge(TT_cross_g_TCI, dim, 1)
-error = tl.norm(g_tensor - tl.tt_to_tensor(TT_cores_g_TCI)) / tl.norm(g_tensor)
-print(f"Relative error of g QTT at r_max = {r_max}: {error}")
-
-TT_cross_g_new = cross_core_interp_assemble(g_tensor, interp_I_g_new, interp_J_g_new, TTRank_g_new)
-TT_cores_g_new = cross_inv_merge(TT_cross_g_new, dim, 1)
 error = tl.norm(g_tensor - tl.tt_to_tensor(TT_cores_g_new)) / tl.norm(g_tensor)
 print(f"Relative error of g new at r_max = {r_max}: {error}")
-pass
 
+
+interp_I_g_new, interp_J_g_new, TTRank_g_new, TT_cores_g_new = QTTM_INTCONT(
+            f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1, pr_set_f1,
+            f2_tensor, interp_I_f2, interp_J_f2, TTRank_f2, pr_set_f2,
+            4, 8, eps)
+
+error = tl.norm(g_tensor - tl.tt_to_tensor(TT_cores_g_new)) / tl.norm(g_tensor)
+print(f"Relative error of g new at r_max = {r_max}: {error}")
+
+pass
 
 
 
@@ -80,8 +85,7 @@ def red_test():
         print(f"Relative error of g RED at r_max = {r_max}: {error}")    
     return
 
-#red_test()
-
+'''
 def hInt_firstTry():
     # Assemble f1
     TT_cross_f1 = cross_core_interp_assemble(f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1)
@@ -123,8 +127,8 @@ def hInt_firstTry():
         
         if integral_number > 0:
             # Partially integrate f1 and f2 via QTT
-            integral_qtci_f1 = integral_qtt(TT_cores_f1, integral_number, 1)
-            integral_qtci_f2 = integral_qtt(TT_cores_f2, integral_number, 1)
+            integral_qtci_f1 = integral_qtt(TT_cores_f1, integral_number)
+            integral_qtci_f2 = integral_qtt(TT_cores_f2, integral_number)
             f1_contraction = f1_contraction @ integral_qtci_f1.reshape(-1,1)
             f2_contraction = f2_contraction @ integral_qtci_f2.reshape(-1,1) 
 
@@ -197,7 +201,7 @@ def hInt_firstTry():
         interp_J_new[i+1] = J
 
     return interp_I_f1_copy, interp_J_new, TTRank_new, Zj_list
-
+'''
 # Plot numerical results
 max_rank_selection = [2,3,4,5,6,7,8]
 rel_error_TCI_g = [0.518606738251041, 0.03929485422630780, 0.005080629328349756, 0.0022383885452628596, 0.0001335697037330801, 6.460937515610282e-05, 5.4462581444022203e-05]
