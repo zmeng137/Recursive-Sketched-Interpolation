@@ -1,5 +1,7 @@
 import numpy as np
+import random as rd
 import tensorly as tl
+
 from interpolation import interpolative_prrldu, cur_prrldu, cur_prrldu_ninv
 from rank_revealing import prrldu
 from QTT import integral_qtt
@@ -619,11 +621,35 @@ def Rank1_Nested_initIJ_gen(tensor):
     Nested_J_rank1[dim+1] = []
     return Nested_I_rank1, Nested_J_rank1
 
+# Generate random nested interpolation sets for tensor cross interpolation
+def nested_initIJ_gen_rank1(dim):
+    # Dict for I/J interpolation
+    interp_I = {}
+    interp_J = {}
+
+    # Iteration for I interpolation
+    interp_I[1] = np.array([[rd.randint(0, 1)]])
+    for d in range(2,dim):
+        pivot = rd.randint(0, 1)
+        interp_I[d] = np.empty([1,d])
+        interp_I[d][0,0:d-1] = interp_I[d-1][0]
+        interp_I[d][0,d-1] = pivot
+    
+    # Iteration for J interpolation
+    interp_J[dim] = np.array([[rd.randint(0, 1)]])
+    for d in range(dim-1, 1, -1):
+        pivot = rd.randint(0, 1)
+        interp_J[d] = np.empty([1,dim-d+1])
+        interp_J[d][0,0] = pivot
+        interp_J[d][0,1:] = interp_J[d+1][0]
+        
+    # Empty boundary interpolation
+    interp_I[0] = []
+    interp_J[dim+1] = []
+
+    return interp_I, interp_J
+
 # 1-site tensor cross interpolation for nesting condition and rank compression
 def TCI_1site(tensor, interp_I, interp_J):
 
-    return
-
-def TCI_1site_local(tensor, ):
-    
     return
