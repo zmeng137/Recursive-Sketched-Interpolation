@@ -1,10 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from einops import rearrange
+import matplotlib.pyplot as plt
 
-from the_well.benchmark.metrics import VRMSE
 from the_well.data import WellDataset
+from utils import save_quantics_tensor_hdf5
 
 base_path = "./datasets"  
 
@@ -37,8 +36,8 @@ x_coords = space_grid[:, :, 0]  # x coordinates
 y_coords = space_grid[:, :, 1]  # y coordinates
 
 # Choose which time step and field to plot
-time_step = 2    # Which time step (0 to n_steps_input-1)
-field_index = 1  # Which field (change this to plot different fields)
+time_step = 3    # Which time step (0 to n_steps_input-1)
+field_index = 2  # Which field (change this to plot different fields)
 
 # Extract the 2D function at specified time step
 function_2d = input_fields[time_step, :, :, field_index]
@@ -100,15 +99,17 @@ def convert_1d_to_quantics_tensor(function, n_bits):
         raise ValueError(f"Function length {len(function)} != 2^{n_bits} = {2**n_bits}")
     
     if n_bits == 1:
-        quantics_tensor = torch.zeros(2,dtype=function.dtype)
+        #quantics_tensor = torch.zeros(2,dtype=function.dtype)
+        quantics_tensor = np.zeros(2,dtype=np.float32)
         quantics_tensor[0] = function[0]
         quantics_tensor[1] = function[1]
         return quantics_tensor
     
     # Create the quantics tensor
     quantics_shape = (2,) * n_bits
-    quantics_tensor = torch.zeros(quantics_shape, dtype=function.dtype)
-
+    #quantics_tensor = torch.zeros(quantics_shape, dtype=function.dtype)
+    quantics_tensor = np.zeros(quantics_shape, dtype=np.float32)
+    
     new_bit = n_bits - 1
     func_half_1 = function[0 : 2 ** new_bit]
     func_half_2 = function[2 ** new_bit :] 
@@ -118,11 +119,14 @@ def convert_1d_to_quantics_tensor(function, n_bits):
     
     return quantics_tensor
 
+# Quantics tensor generation
 qtensor = convert_1d_to_quantics_tensor(function_1d_simple, 16)
 
+# Save the data
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/qt_active_matter_0.hdf5"
+save_quantics_tensor_hdf5(qtensor, filepath)
 
 
-pass
 
 '''
 item = dataset[0]
