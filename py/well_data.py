@@ -1,9 +1,10 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import tensorly as tl
 
 from the_well.data import WellDataset
-from utils import save_quantics_tensor_hdf5
+from utils import save_quantics_tensor_hdf5, load_quantics_tensor_hdf5
 
 base_path = "./datasets"  
 
@@ -126,6 +127,8 @@ qtensor = convert_1d_to_quantics_tensor(function_1d_simple, 16)
 filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/qt_active_matter_0.hdf5"
 save_quantics_tensor_hdf5(qtensor, filepath)
 
+qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
+print(f"Difference between the real tensor and hdf5-loaded tensor: {tl.norm(qtensor - qtensor_new)}")
 
 
 '''
