@@ -1,133 +1,109 @@
 import numpy as np
-import sparse as sp
-import time as tm
-import matplotlib.pyplot as plt
+import h5py
+import os
+from datetime import datetime
 
-# Visualization of 2D matrix 
-def view_mat2d(matrix):
-    plt.figure(figsize=(10,8))
-    plt.imshow(matrix, cmap='viridis', aspect='auto')
-    plt.tight_layout()
-    plt.show()
-
-# Show sparsity information of the input full (dense-format) matrix
-def MatrixSparseStat(matrix: np.array):
-    print("The sparsity statistics of the input matrix is as follows ...")
-    size = matrix.size
-    shape = matrix.shape
-    cntzero = np.count_nonzero(np.abs(matrix) < 1e-10)
-    cntnzero = size - cntzero
-    sparsity = cntzero / size
-    density = cntnzero / size
-    print(f"shape = {shape}, size = {size}, # zero = {cntzero}, sparsity = {sparsity}, # non-zero = {cntnzero}, density = {density}")
-    return
-
-# Show sparsity information of the input full (dense-format) tensor array 
-def TensorSparseStat(factors: list[np.array]):
-    print("The sparsity statistics of the input tensor is as follows ...")
-    totalnnz = 0
-    for i in range(len(factors)):
-        factor = factors[i]
-        size = factor.size
-        shape = factor.shape
-        cntzero = np.count_nonzero(np.abs(factor) < 1e-10)
-        cntnzero = size - cntzero
-        totalnnz += cntnzero
-        sparsity = cntzero / size
-        density = cntnzero / size
-        print(f"Tensor factor {i}: shape = {shape}, size = {size}, # zero = {cntzero}, sparsity = {sparsity}, # non-zero = {cntnzero}, density = {density}")
-    print(f"Total number of non-zero: {totalnnz}\n\n")
-    return
-
-# Find Pct%-close-to-0 values of a martrix and cast them to 0
-def CastValueAroundZero(Mat: np.array, Pct: float) -> np.array:
-    absMat = np.abs(Mat)
-    eleCnt = Mat.size
-    # Sort and cast
-    sortIndx = np.unravel_index(np.argsort(absMat, axis=None), absMat.shape)
-    sortMat = absMat[sortIndx]
-    if Pct >= 1.0 or Pct <= 0.0:
-        print("The input percentage should be between 0 and 1. The percentage is set to 0.5 by default.")
-        Pct = 0.5
-    thresIdx = int(eleCnt * Pct) 
-    thresVal = sortMat[thresIdx]    
-    Mat = np.where(absMat > thresVal, Mat, 0)
-    return Mat
-
-# Read FROSTT data
-def readfrostt(path: str, shape: tuple):
-    print(f"Start loading tensor data {path}...")
-    start_t = tm.time()
-    #is_it_equal_function = lambda x:x in shape
-    shape = np.array(shape)
-    with open(path, "r") as file:
-        modeList = []
-        for line in file:
-            numbers = line.strip().split()
-            numbers = np.array([int(num) for num in numbers])
-            coords = numbers[:-1]-1
-            cmp = coords < shape
-            if np.all(cmp):
-                modeList.append(numbers)
-        modeList = np.array(modeList, dtype=np.int32)
-        modeList = modeList.T
-        data = modeList[-1] 
-        coords = modeList[:-1]-1
-        spt = sp.COO(coords, data, shape)
-    end_t = tm.time()
-    print(f"Finish loading! It took {end_t - start_t} seconds.")
-    return spt
-
-def read_from_tns(filename, shape):
-    data_array = np.loadtxt(filename) # Load all data using numpy (fast method)
+# Save quantics tensor to HDF5 file with metadata.
+def save_quantics_tensor_hdf5(quantics_tensor, filepath, metadata=None, compression=True):
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
     
-    # Split into coordinates and values
-    coords = data_array[:, :-1].astype(int)  # All columns except last as coordinates
-    values = data_array[:, -1]  # Last column as values
+    with h5py.File(filepath, 'w') as f:
+        # Save the quantics tensor data
+        if compression:
+            # Use gzip compression with chunk size optimized for tensor structure
+            chunk_size = tuple(min(dim, 64) for dim in quantics_tensor.shape)
+            dataset = f.create_dataset(
+                'quantics_tensor',
+                data=quantics_tensor,
+                compression='gzip',
+                compression_opts=6,  # Compression level 0-9
+                chunks=chunk_size,
+                shuffle=True,        # Reorder bytes for better compression
+                fletcher32=True      # Add checksum for data integrity
+            )
+        else:
+            dataset = f.create_dataset('quantics_tensor', data=quantics_tensor)
+        
+        # Store tensor attributes
+        dataset.attrs['shape'] = quantics_tensor.shape
+        dataset.attrs['dtype'] = str(quantics_tensor.dtype)
+        dataset.attrs['n_modes'] = len(quantics_tensor.shape)
+        dataset.attrs['total_elements'] = quantics_tensor.size
+        dataset.attrs['memory_mb'] = quantics_tensor.nbytes / (1024**2)
+        
+        # Store creation timestamp
+        dataset.attrs['created_at'] = datetime.now().isoformat()
+        dataset.attrs['format_version'] = '1.0'
+        dataset.attrs['description'] = 'Quantics tensor in hierarchical binary format'
+        
+        # Store optional metadata
+        if metadata is not None:
+            metadata_group = f.create_group('metadata')
+            for key, value in metadata.items():
+                if isinstance(value, (str, int, float, bool)):
+                    metadata_group.attrs[key] = value
+                elif isinstance(value, np.ndarray):
+                    metadata_group.create_dataset(key, data=value)
+                elif isinstance(value, (list, tuple)):
+                    metadata_group.attrs[key] = np.array(value)
+                else:
+                    # Convert to string for unsupported types
+                    metadata_group.attrs[key] = str(value)
+        
+        # Calculate and store compression statistics
+        if compression:
+            uncompressed_size = quantics_tensor.nbytes
+            compressed_size = os.path.getsize(filepath)
+            compression_ratio = uncompressed_size / compressed_size
+            
+            f.attrs['uncompressed_size_mb'] = uncompressed_size / (1024**2)
+            f.attrs['compressed_size_mb'] = compressed_size / (1024**2)
+            f.attrs['compression_ratio'] = compression_ratio
     
-    # Create COO array
-    return sp.COO(coords.T, values, shape=shape)
+    print(f"Quantics tensor saved to: {filepath}")
+    if compression:
+        print(f"Compression ratio: {compression_ratio:.2f}x")
+    print(f"File size: {os.path.getsize(filepath) / (1024**2):.2f} MB")
 
-def smooth_singular_values(n, decay_rate=0.1):
-    # Generate smoothly decaying singular values
-    return np.exp(-decay_rate * np.arange(n))
-
-def generate_smooth_svd_matrix(m, n, decay_rate=0.5, seed = 100):
-    # Random orthogonal matrices
-    np.random.seed(seed)
-    U, _ = np.linalg.qr(np.random.randn(m, min(m,n)))
-    V, _ = np.linalg.qr(np.random.randn(n, min(m,n)))
+# Load quantics tensor from HDF5 file.
+def load_quantics_tensor_hdf5(filepath):
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
     
-    # Smooth singular values
-    s = smooth_singular_values(min(m,n), decay_rate)
+    with h5py.File(filepath, 'r') as f:
+        # Load the quantics tensor
+        quantics_tensor = f['quantics_tensor'][:]
+        
+        # Load attributes
+        attrs = dict(f['quantics_tensor'].attrs)
+        
+        # Load metadata if exists
+        metadata = {}
+        if 'metadata' in f:
+            metadata_group = f['metadata']
+            
+            # Load metadata attributes
+            for key, value in metadata_group.attrs.items():
+                metadata[key] = value
+            
+            # Load metadata datasets
+            for key in metadata_group.keys():
+                metadata[key] = metadata_group[key][:]
+        
+        # Load file-level attributes
+        file_attrs = dict(f.attrs)
+        
+        # Combine all metadata
+        full_metadata = {
+            'tensor_attrs': attrs,
+            'file_attrs': file_attrs,
+            'user_metadata': metadata
+        }
     
-    # Construct matrix
-    S = np.zeros((m, n))
-    np.fill_diagonal(S, s)
+    print(f"Quantics tensor loaded from: {filepath}")
+    print(f"Shape: {quantics_tensor.shape}")
+    print(f"Dtype: {quantics_tensor.dtype}")
+    print(f"Size: {quantics_tensor.nbytes / (1024**2):.2f} MB")
     
-    return U @ S @ V.T
-
-# Singular value-controlled TT Generator (TODO)
-def generate_controlled_svd_tt(shape, tt_rank, decay_rate, seed):
-    dim = len(shape)       # Dimension
-    nbar = np.prod(shape)  # Total size of the tensor
-    r = 1                  # Rank r
-    ttList = []            # List storing tt factors
-    iterlist = list(range(1, dim))  # Create iteration list: 1, 2, ..., d-1
-    iterlist.reverse()              # Reverse the iteration list: d-1, ..., 1
-    
-    np.random.seed(seed)
-    for i in iterlist:
-        m = int(nbar / r / shape[i])  # Reshaped rows 
-        n = int(r * shape[i])         # Reshaped columns
-        r = min(m, n, tt_rank[i])     # TT-rank
-
-        s = smooth_singular_values(r, decay_rate[i])
-        S = np.zeros((r, r))
-        np.fill_diagonal(S, s)
-
-        U, _ = np.linalg.qr(np.random.randn(m, r))
-        V, _ = np.linalg.qr(np.random.randn(n, r))
-        # TODO...
-    
-    return
+    return quantics_tensor, full_metadata
