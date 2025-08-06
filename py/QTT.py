@@ -3,6 +3,8 @@ import itertools
 import tensorly as tl
 import matplotlib.pyplot as plt
 
+from tensor_cross import slice_first_modes, slice_last_modes
+
 # Populate tensor using numpy.fromfunction
 def populate_tensor_fromfunction(dims, func):
     # Populate tensor using numpy.fromfunction
@@ -11,19 +13,23 @@ def populate_tensor_fromfunction(dims, func):
     
     # Use fromfunction to create the tensor
     tensor_data = np.fromfunction(array_func, dims, dtype=int)
+    
     return tl.tensor(tensor_data)
 
 # Scatter plot for f1, f2, g
 def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
     plt.figure()
     plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
+    
     if f1_tensor is not None:
         plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
     if f2_tensor is not None:
         plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
+    
     plt.legend()
     plt.grid()
     plt.savefig("f1_f2_g.png")
+    
     return
 
 # Generate quantics representation of a continuous function
@@ -113,10 +119,12 @@ def integral_qtt(QTT, integral_dim):
 def Qintegral_TT(QTT):
     dim = len(QTT)   # Number of TT-cores
     TT_int = []      # Integral TT
+    
     for i in range(dim):
         core = QTT[i]
         int_core = 0.5 * core[:,0,:] + 0.5 * core[:,1,:]
         TT_int.append(int_core) 
+    
     return TT_int
 
 # Query a value of a function from its QTT at a specific position    
@@ -134,4 +142,62 @@ def value_query_QTT(QTT, TTRank, pos):
             for j in range(left_bond):
                 merge[i] += interm_core[j] * QTT[p+1][j, free, i] 
         interm_core = merge
+    
     return interm_core[0]
+
+# Plot the pivots used to interpolate the function
+def plot_interp_pivots(interp_I, interp_J, x_tensor, y_tensor):
+    # Dimension and tensor flattening
+    dim = len(y_tensor.shape)
+    x_flat = x_tensor.flatten()
+    y_flat = y_tensor.flatten()
+
+    # Plot the quantics tensor
+    plt.figure()
+    plt.plot(x_flat, y_flat)
+
+    # Plot the pivots in every mode. Assmebly of TT-Cores via interpolation sets
+    for d in range(dim):
+        # Construct TT-cores
+        if d == 0:
+            right_rank = len(interp_J[2])
+            x_piv_val = np.empty([1, 2, right_rank])
+            y_piv_val = np.empty([1, 2, right_rank])
+            for j in range(right_rank):
+                J_slice = interp_J[2][j].astype(int).tolist()
+                x_piv_val[0,:,j] = slice_last_modes(x_tensor, J_slice)
+                y_piv_val[0,:,j] = slice_last_modes(y_tensor, J_slice)
+            
+        elif d == dim-1:
+            left_rank = len(interp_I[d])
+            x_piv_val = np.empty([left_rank, 2, 1])
+            y_piv_val = np.empty([left_rank, 2, 1])
+            for i in range(left_rank):
+                I_slice = interp_I[d][i].astype(int).tolist()
+                x_piv_val[i,:,0] = slice_first_modes(x_tensor, I_slice)
+                y_piv_val[i,:,0] = slice_first_modes(y_tensor, I_slice)
+
+        else:
+            left_rank = len(interp_I[d])
+            right_rank = len(interp_J[d+2])
+            x_piv_val = np.empty([left_rank, 2, right_rank])
+            y_piv_val = np.empty([left_rank, 2, right_rank])
+            for i in range(left_rank):
+                I_slice = interp_I[d][i].astype(int).tolist()
+                for j in range(right_rank):
+                    J_slice = interp_J[d+2][j].astype(int).tolist()
+                    x_temp = slice_first_modes(x_tensor, I_slice)
+                    y_temp = slice_first_modes(y_tensor, I_slice)
+                    x_piv_val[i,:,j] = slice_last_modes(x_temp, J_slice)
+                    y_piv_val[i,:,j] = slice_last_modes(y_temp, J_slice)
+
+        plt.scatter(x_piv_val, y_piv_val, label=f'{d}-th core pivots')    
+
+    plt.xlabel('x values')
+    plt.ylabel('y values')
+    plt.legend()
+    plt.title('y vs x')
+    plt.grid(True, alpha=0.3)
+    plt.savefig("plot_interp_pivots.png")
+
+    return
