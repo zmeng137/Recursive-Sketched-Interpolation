@@ -2,9 +2,8 @@ import numpy as np
 import random as rd
 import tensorly as tl
 
-from interpolation import interpolative_prrldu, cur_prrldu, cur_prrldu_ninv
+from interpolation import interpolative_prrldu, cur_prrldu
 from rank_revealing import prrldu
-from QTT import integral_qtt
 
 # Slice tensor: T[I,:]
 def slice_first_modes(arr, indices):
@@ -90,7 +89,7 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1, full_nest
         W = tl.reshape(W, [int(r * curr_dim), int(nbar / r / curr_dim)])  # Reshape W       
         
         # CUR decomposition based on PRRLDU
-        r_subset, c_subset, cross_inv, cross, rank, pr, pc = cur_prrldu(W, eps, r_max)
+        r_subset, c_subset, cross, rank, pr, pc = cur_prrldu(W, eps, r_max)
         pr = pr[0:rank]  # Row skeleton 
         pc = pc[0:rank]  # Col skeleton
 
@@ -112,7 +111,8 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1, full_nest
             InterpSet_J[i+2] = np.array(pc).reshape(-1,1)
 
         # Append new TT-factor
-        Ti = tl.reshape(c_subset @ cross_inv, [r, shape[i], rank])
+        Ti = tl.reshape(c_subset, [r, shape[i], rank])
+        Ti = coreinv_qr(Ti, pr)
         TTCore.append(Ti)                                          
         TTCore_cc.append(tl.reshape(c_subset, [r, shape[i], rank]))  
         TTCore_cc.append(cross)
@@ -177,6 +177,7 @@ def TT_CUR_L2R(tensor: tl.tensor, r_max: int, eps: float, verbose = 1, full_nest
     
     return TTCore, TTCore_cc, TTRank, InterpSet_I, InterpSet_J
 
+'''
 # PRRLU-based (Exact) Tensor-Train CUR Decomposition (Sweep from Right to Left)
 def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     shape = tensor.shape  # Get the shape of input tensor: [n1, n2, ..., nd]
@@ -243,6 +244,7 @@ def TT_CUR_R2L(tensor: tl.tensor, r_max: int, eps: float, verbose = 1):
     TTCore_cc.reverse()
     TTRank.reverse()
     return TTCore, TTCore_cc, TTRank, InterpSet
+'''
 
 # Compute inverse of cross matrices and merge them into TT-cores
 def cross_inv_merge(TTCore_cross, dimension, order=0, verbose=0):
