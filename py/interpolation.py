@@ -111,8 +111,7 @@ def cur_prrldu(M: np.ndarray, cutoff: float = 0.0, maxdim: int = np.iinfo(np.int
     c_subset = M[:, pc[0:rank]]   # subset of columns 
     cross = M[pr[0:rank], :]     
     cross = cross[:, pc[0:rank]]  # cross matrix
-    cross_inv = np.linalg.inv(cross)
-    return r_subset, c_subset, cross_inv, cross, rank, pr, pc
+    return r_subset, c_subset, cross, rank, pr, pc
 
 # CUR decomposition (cross without inverse)
 def cur_prrldu_ninv(M: np.ndarray, cutoff: float = 0.0, maxdim: int = np.iinfo(np.int32).max, mindim: int = 1) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
