@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import tensorly as tl
 
 from the_well.data import WellDataset
-from utils import save_quantics_tensor_hdf5, load_quantics_tensor_hdf5
+from utils import save_quantics_tensor_hdf5, load_quantics_tensor_hdf5, convert_1d_to_quantics_tensor, convert_quantics_tensor_to_1d
 
 base_path = "./datasets"  
 
@@ -12,7 +12,7 @@ dataset = WellDataset(
     well_base_path=base_path,
     well_dataset_name="active_matter",
     well_split_name="train",
-    n_steps_input=4,
+    n_steps_input=10,
     n_steps_output=1,
     use_normalization=False,
 )
@@ -37,8 +37,8 @@ x_coords = space_grid[:, :, 0]  # x coordinates
 y_coords = space_grid[:, :, 1]  # y coordinates
 
 # Choose which time step and field to plot
-time_step = 3    # Which time step (0 to n_steps_input-1)
-field_index = 2  # Which field (change this to plot different fields)
+time_step = 7    # Which time step (0 to n_steps_input-1)
+field_index = 1  # Which field (change this to plot different fields)
 
 # Extract the 2D function at specified time step
 function_2d = input_fields[time_step, :, :, field_index]
@@ -94,78 +94,16 @@ plt.colorbar(im3, ax=axes[2])
 plt.tight_layout()
 plt.savefig("active_matter_test.png")
 
-# Convert 1D function to quantics tensor format recursively
-def convert_1d_to_quantics_tensor(function, n_bits):
-    if len(function) != 2**n_bits:
-        raise ValueError(f"Function length {len(function)} != 2^{n_bits} = {2**n_bits}")
-    
-    if n_bits == 1:
-        #quantics_tensor = torch.zeros(2,dtype=function.dtype)
-        quantics_tensor = np.zeros(2,dtype=np.float32)
-        quantics_tensor[0] = function[0]
-        quantics_tensor[1] = function[1]
-        return quantics_tensor
-    
-    # Create the quantics tensor
-    quantics_shape = (2,) * n_bits
-    #quantics_tensor = torch.zeros(quantics_shape, dtype=function.dtype)
-    quantics_tensor = np.zeros(quantics_shape, dtype=np.float32)
-    
-    new_bit = n_bits - 1
-    func_half_1 = function[0 : 2 ** new_bit]
-    func_half_2 = function[2 ** new_bit :] 
-
-    quantics_tensor[0,:] = convert_1d_to_quantics_tensor(func_half_1, new_bit)
-    quantics_tensor[1,:] = convert_1d_to_quantics_tensor(func_half_2, new_bit)
-    
-    return quantics_tensor
-
 # Quantics tensor generation
-qtensor = convert_1d_to_quantics_tensor(function_1d_simple, 16)
+qtensor_from_func1d = convert_1d_to_quantics_tensor(function_1d_simple, 16)
+func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
+func1d_from_qtensor = torch.from_numpy(func1d_from_qtensor)
+print(f"Error - Function 1D -> quantics tensor -> Function 1D: {torch.norm(func1d_from_qtensor - function_1d_simple)}")
+
 
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/qt_active_matter_0.hdf5"
-save_quantics_tensor_hdf5(qtensor, filepath)
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/qt_active_matter_1.hdf5"
+save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
-print(f"Difference between the real tensor and hdf5-loaded tensor: {tl.norm(qtensor - qtensor_new)}")
-
-
-'''
-item = dataset[0]
-tensor = prepare_qtt_data(item)
-pass
-
-
-from tt_svd import TT_SVD
-import tensorly as tl
-
-#r_max = 12
-#TT_cores = TT_SVD(test_tensor, r_max, 1e-8, 0)
-#recon_f1 = tl.tt_to_tensor(TT_cores)
-#error = tl.norm(test_tensor - recon_f1) / tl.norm(test_tensor)
-#print(f"Relative error of f1 QTT at r_max = {r_max}: {error}")
-
-
-from tensor_cross import TCI_2site, nested_initIJ_gen_rank1, TT_IDPRRLDU
-
-r_max = 12
-TT_cores = TT_IDPRRLDU(tensor, r_max, 1e-8, 0)
-recon_f1 = tl.tt_to_tensor(TT_cores)
-error = tl.norm(tensor - recon_f1) / tl.norm(tensor)
-print(f"Relative error of f1 QTT at r_max = {r_max}: {error}")
-
-
-dim = len(tensor.shape)
-Nested_I_rank1, Nested_J_rank1 = nested_initIJ_gen_rank1(dim)
-
-# PROBLEM FOR TCI! -> no convergence for the well data?
-
-# TCI-2site of f1
-eps = 1e-8
-r_max = 12
-TT_cross_f1, TT_cores_f1, TTRank_f1, pr_set_f1, pc_set_f1, interp_I_f1, interp_J_f1 = TCI_2site(tensor, eps, r_max, Nested_I_rank1, Nested_J_rank1)
-recon_f1 = tl.tt_to_tensor(TT_cores_f1)
-error = tl.norm(tensor - recon_f1) / tl.norm(tensor)
-print(f"Relative error of f1 QTT at r_max = {r_max}: {error}")
-'''
+print(f"Difference between the real tensor and hdf5-loaded tensor: {tl.norm(qtensor_from_func1d - qtensor_new)}")
