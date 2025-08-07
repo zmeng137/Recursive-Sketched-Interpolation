@@ -2,20 +2,20 @@ import numpy as np
 import tensorly as tl
 import matplotlib.pyplot as plt
 
-from QTT import quantics_generation, scatter_plot_f1f2, plot_interp_pivots
+from py.qtt import quantics_generation, scatter_plot_f1f2, plot_interp_pivots
 from tensor_cross import cross_core_interp_assemble, TCI_2site, cross_inv_merge_stable, nested_initIJ_gen_rank1, Rank1_Nested_initIJ_gen
-from QTTM import QTTM_INTCONT, QTTM_INTCONT_NOEVAL
-from functions import Function_Collection
+from qttm import QTTM_INTCONT, QTTM_INTCONT_NOEVAL
+from utils import Function_Collection
 
 ''' === Quantics representation construction === '''
 # Quantics construction
-func1 = Function_Collection[1]
-func2 = Function_Collection[2]
+func1 = Function_Collection[3]
+func2 = Function_Collection[4]
 dim = 12
 x_tensor, f1_tensor = quantics_generation(func1, dim)
 _,        f2_tensor = quantics_generation(func2, dim)
 g_tensor = f1_tensor * f2_tensor
-#scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor, f2_tensor)
+scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor, f2_tensor)
 
 ''' === Tensor cross interpolation for f1, f2, g === '''
 # Create initial (rank-1) interpolation I/J sets
@@ -24,7 +24,7 @@ I11, J11 = Rank1_Nested_initIJ_gen(f1_tensor)
 
 # TCI-2site of f1
 eps = 1e-8
-r_max = 5
+r_max = 7
 TT_cross_f1, TT_cores_f1, TTRank_f1, pr_set_f1, pc_set_f1, interp_I_f1, interp_J_f1 = TCI_2site(f1_tensor, eps, r_max, Nested_I_rank1, Nested_J_rank1)
 recon_f1 = tl.tt_to_tensor(TT_cores_f1)
 error = tl.norm(f1_tensor - recon_f1) / tl.norm(f1_tensor)
@@ -89,7 +89,7 @@ def red_test():
         print(f"Relative error of g RED at r_max = {r_max}: {error}")    
     return
 
-red_test()
+#red_test()
 
 # Plot numerical results
 max_rank_selection = [2,3,4,5,6,7,8]
