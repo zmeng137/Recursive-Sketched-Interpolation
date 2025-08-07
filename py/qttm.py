@@ -3,7 +3,7 @@ import numpy as np
 import math as ma
 import tensorly as tl
 from tensor_cross import single_core_interp_assemble, cross_core_interp_assemble, cross_inv_merge, cross_inv_merge_stable, coreinv_qr, slice_first_modes, slice_last_modes
-from QTT import Qintegral_TT, adj_ttcore_contract
+from qtt import Qintegral_TT, adj_ttcore_contract
 from interpolation import cur_prrldu
 from rank_revealing import prrldu
 
@@ -188,8 +188,8 @@ def QTTM_INTCONT(f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1, pr_set_f1,
 
 
 # QTTM algorithm with access of f1/f2 functions. Partial integral and contraction method. In this version we don't have evaluation of f1 and f2
-def QTTM_INTCONT_NOEVAL(TT_cores_f1, interp_I_f1, interp_J_f1, TTRank_f1,
-                        TT_cores_f2, interp_I_f2, interp_J_f2, TTRank_f2,
+def QTTM_INTCONT_NOEVAL(TT_cores_f1, interp_I_f1, TTRank_f1,
+                        TT_cores_f2, interp_I_f2, TTRank_f2,
                         contract_core_number, max_rank, eps):
     start_time_QTTM = tm.time()
 
@@ -273,7 +273,7 @@ def QTTM_INTCONT_NOEVAL(TT_cores_f1, interp_I_f1, interp_J_f1, TTRank_f1,
         mat_row = ma.prod(shape_contract_t[0:2])
         mat_col = ma.prod(shape_contract_t[2:])
         TTint_matrix = tl.reshape(TTint_contract_f1f2, [mat_row, mat_col])    
-        r_subset, c_subset, _, _, rank, pr, pc = cur_prrldu(TTint_matrix, eps, max_rank)
+        r_subset, c_subset, _, rank, pr, pc = cur_prrldu(TTint_matrix, eps, max_rank)
         pr = pr[0: rank]
         pc = pc[0: rank]
         
