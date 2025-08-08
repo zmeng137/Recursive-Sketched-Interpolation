@@ -2,8 +2,8 @@ import numpy as np
 import tensorly as tl
 import matplotlib.pyplot as plt
 
-from py.qtt import quantics_generation, scatter_plot_f1f2, plot_interp_pivots
-from tensor_cross import cross_core_interp_assemble, TCI_2site, cross_inv_merge_stable, nested_initIJ_gen_rank1, Rank1_Nested_initIJ_gen
+from qtt import quantics_generation, scatter_plot_f1f2, plot_interp_pivots
+from tensor_cross import TCI_2site, TT_CUR_L2R, nested_initIJ_gen_rank1
 from qttm import QTTM_INTCONT, QTTM_INTCONT_NOEVAL
 from utils import Function_Collection
 
@@ -17,10 +17,45 @@ _,        f2_tensor = quantics_generation(func2, dim)
 g_tensor = f1_tensor * f2_tensor
 scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor, f2_tensor)
 
+''' === TT-ID for f1, f2, g === '''
+r_max = 5
+eps = 1e-16
+TTCore_f1, _, TTRank_f1, InterpSet_I_f1, _ = TT_CUR_L2R(f1_tensor, r_max, eps, 0, 0)
+TTCore_f2, _, TTRank_f2, InterpSet_I_f2, _ = TT_CUR_L2R(f2_tensor, r_max, eps, 0, 0)
+
+recon_f1 = tl.tt_to_tensor(TTCore_f1)
+recon_f2 = tl.tt_to_tensor(TTCore_f2)
+error_f1 = tl.norm(f1_tensor - recon_f1) / tl.norm(f1_tensor)
+error_f2 = tl.norm(f2_tensor - recon_f2) / tl.norm(f2_tensor)
+print(f"Relative error of f1 QTT at r_max = {r_max}: {error_f1}, f2 QTT at r_max = {r_max}: {error_f2}")
+
+
+contract_core_number = 4
+r_max = 8
+InterpSet_I_f1[0] = []
+InterpSet_I_f2[0] = []
+interp_I_g, interp_J_g, TTRank_g, TT_cores_g = QTTM_INTCONT_NOEVAL(
+                        TTCore_f1, InterpSet_I_f1, TTRank_f1,
+                        TTCore_f2, InterpSet_I_f2, TTRank_f2,
+                        contract_core_number, r_max, eps)
+
+error_vs_real = tl.norm(recon_f1 * recon_f2 - tl.tt_to_tensor(TT_cores_g)) / tl.norm(recon_f1 * recon_f2)
+print(f"Relative error (vs recon g) at r_max = {r_max}: {error_vs_real}")
+
+
+pass
+# Why the error cannot keep going down? Even when I expand the contraction core number...
+# Solved -> compare with recon_f1 * recon_f2
+
+
+
+
+
+
+
 ''' === Tensor cross interpolation for f1, f2, g === '''
 # Create initial (rank-1) interpolation I/J sets
 Nested_I_rank1, Nested_J_rank1 = nested_initIJ_gen_rank1(dim)
-I11, J11 = Rank1_Nested_initIJ_gen(f1_tensor)
 
 # TCI-2site of f1
 eps = 1e-8

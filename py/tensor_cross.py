@@ -608,21 +608,6 @@ def TCI_union_two(tensor_f1, interp_I_1, interp_J_1, tensor_f2, interp_I_2, inte
     TTRank_new.append(1)
     return interp_I_new, interp_J_new, TTRank_new
 
-# Generate TT-rank=1 initial nested interpolation sets for tensor cross interpolation
-def Rank1_Nested_initIJ_gen(tensor):
-    dim = len(tensor.shape)
-    r_max = 1
-    eps = 0
-    TTCores, TTCores_Cross, TTRank, Nested_I_rank1, Nested_J_rank1 = TT_CUR_L2R(tensor, r_max, eps)
-    Assemble_TTCore_Cross = cross_core_interp_assemble(tensor, Nested_I_rank1, Nested_J_rank1, TTRank)
-    for i in range(2 * len(TTRank) - 3):
-        diff_flag = (Assemble_TTCore_Cross[i] == TTCores_Cross[i]).all()
-        if (diff_flag == False):
-            print(f"Interpolation assembly error at {i}!")
-    Nested_I_rank1[0] = []
-    Nested_J_rank1[dim+1] = []
-    return Nested_I_rank1, Nested_J_rank1
-
 # Generate random nested interpolation sets for tensor cross interpolation
 def nested_initIJ_gen_rank1(dim):
     # Dict for I/J interpolation

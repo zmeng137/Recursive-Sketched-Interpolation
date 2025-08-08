@@ -39,8 +39,8 @@ real_g = qtensor_f1 * qtensor_f2
 recon_g = recon_f1 * recon_f2
 
 # Get new g's I, J sets from f1 TCI and f2 TCI via the integral method
-contract_number = 9
-r_max = 40
+contract_number = 8
+r_max = 64
 interp_I_g, interp_J_g, TTRank_g, TT_cores_g = QTTM_INTCONT_NOEVAL(
                 TTCore_f1, InterpSet_I_f1, TTRank_f1,
                 TTCore_f2, InterpSet_I_f2, TTRank_f2,

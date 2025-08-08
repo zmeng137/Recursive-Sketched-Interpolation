@@ -2,14 +2,12 @@ import numpy as np
 import tensorly as tl
 import matplotlib.pyplot as plt
 
-from QTT import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt
+from qtt import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt
 from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cross_inv_merge
 
 # Quantics construction
 quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10)
 func = lambda t: np.abs(2.2 * t ** 6.3 + 2.2 * np.sqrt(t) - 1 + 0.6 * np.sin(8.3 * np.pi * t))  #t ** 5 - 3 * t ** 3 + 10 * t -6 #5 * np.sin(-2 * np.pi * t) - 3 * np.exp(t)
-#func = lambda t: np.abs(2.23 * t ** 5 + 0.412 * t ** 4 - 7 * t ** 2 - t + 3)
-#func = lambda t: 3 * t ** 4 - 7 * t ** 2 - t + 3 # A bad case to show at r=2
 g_func = lambda t: func(t) * func(t)
 shape = (2,2,2,2,2,2,2,2,2,2)
 dim = len(shape)
