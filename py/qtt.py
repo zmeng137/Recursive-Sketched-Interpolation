@@ -1,4 +1,5 @@
 import numpy as np
+import random as rd
 import itertools
 import tensorly as tl
 import matplotlib.pyplot as plt
@@ -94,11 +95,59 @@ def union_rows_bounded_random(A, B, max_rows):
     
     return C
 
+# Random sketching of the last digits of a given quantics tensor train for feature extraction
+def QTT_Sketching(QTT, sketch_dim, randomFlag, seed, skLayer):
+    # Sketching dimension, Random seeds, Sketching layers
+    tensor_dim = len(QTT)   
+    assert sketch_dim <= tensor_dim, "Sketching dimension should be smaller than or equal to tensor dimension"
+
+    # Formalize the new sketched QTT 
+    QTT_new = QTT[0: tensor_dim - sketch_dim].copy()    
+    
+    # Initialize the last sketched core
+    if randomFlag == False:
+        skLayer = 1
+    new_skcore = np.zeros([QTT_new[-1].shape[0], 2, skLayer])
+
+    # Random sketching
+    rd.seed(seed)
+    for l in range(skLayer):        
+        # Random 2-entry vector
+        if randomFlag == True:
+            x = rd.random()
+            y = 1 - x
+        else:
+            x = 0.5
+            y = 0.5
+        print(f"Sketching layer {l}: random vector {(x, y)}")
+        
+        # Sketching 
+        last_core = QTT[-1].copy()  # The last TT-core
+        skIntegral = x * last_core[:,0,:] + y * last_core[:,1,:]
+        for i in range(tensor_dim - 2, tensor_dim - sketch_dim - 1, -1):
+            core = QTT[i].copy()
+            sub_int = x * core[:,0,:] + y * core[:,1,:]
+            skIntegral = sub_int @ skIntegral
+
+        # Newly-integrated QTT
+        result = QTT_new[-1].copy() @ skIntegral.reshape(-1, 1)
+        new_skcore[:, :, l] = np.squeeze(result, axis=-1)
+
+    # All sketching appears in the last digit 
+    QTT_new[-1] = new_skcore    
+    
+    return QTT_new
+
 # Integrate the QTT (right to left) in a given digit number
 def integral_qtt(QTT, integral_dim):
     tensor_dim = len(QTT)
     assert integral_dim <= tensor_dim, "integral dimension should be smaller than or equal to tensor dimension" 
     
+    full_int = False
+    if integral_dim == tensor_dim:
+        integral_dim = tensor_dim - 1
+        full_int = True
+
     # Compute the last integral
     last_core = QTT[-1]
     integral = 0.5 * last_core[:,0,:] + 0.5 * last_core[:,1,:]
@@ -112,6 +161,10 @@ def integral_qtt(QTT, integral_dim):
     # Newly-integrated QTT
     QTT_new = QTT[0: tensor_dim - integral_dim].copy()
     QTT_new[-1] = QTT_new[-1] @ integral.reshape(-1, 1)
+
+    if full_int == True:
+        fc = np.squeeze(QTT_new[0])
+        QTT_new = 0.5 * fc[0] + 0.5 * fc[1]        
 
     return QTT_new
 
