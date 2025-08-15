@@ -2,6 +2,11 @@ import time as tm
 import numpy as np
 import math as ma
 import tensorly as tl
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
+
 from tensor_cross import single_core_interp_assemble, cross_core_interp_assemble, cross_inv_merge, cross_inv_merge_stable, coreinv_qr, slice_first_modes, slice_last_modes
 from qtt import Qintegral_TT, adj_ttcore_contract
 from interpolation import cur_prrldu

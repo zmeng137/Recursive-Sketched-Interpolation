@@ -2,8 +2,13 @@ import numpy as np
 import tensorly as tl
 import matplotlib.pyplot as plt
 
-from qtt import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
 from tensor_cross import TT_CUR_L2R, cross_core_interp_assemble, TCI_2site, cross_inv_merge
+
+from qtt import populate_tensor_fromfunction, union_rows_bounded, scatter_plot_f1f2, integral_qtt
+
 
 # Quantics construction
 quantic_repres = lambda x1,x2,x3,x4,x5,x6,x7,x8,x9,x10: x1/2 + x2/(2**2) + x3/(2**3) + x4/(2**4) + x5/(2**5) + x6/(2**6) + x7/(2**7) + x8/(2**8) + x9/(2**9) + x10/(2**10)

@@ -43,7 +43,7 @@ z_coords = space_grid[:, :, :, 2]  # z coordinates
 
 # Choose which time step and field to plot
 time_step = 7    # Which time step (0 to n_steps_input-1)
-field_index = 1  # Which field (change this to plot different fields)
+field_index = 0  # Which field (change this to plot different fields)
 
 # Extract the 3D function at specified time step
 function_3d = input_fields[time_step, :, :, :, field_index]

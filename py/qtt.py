@@ -1,9 +1,12 @@
+import os
+import sys
 import numpy as np
 import random as rd
 import itertools
 import tensorly as tl
 import matplotlib.pyplot as plt
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
 from tensor_cross import slice_first_modes, slice_last_modes
 
 # Populate tensor using numpy.fromfunction

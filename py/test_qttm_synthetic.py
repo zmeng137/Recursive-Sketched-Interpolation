@@ -2,10 +2,14 @@ import numpy as np
 import tensorly as tl
 import matplotlib.pyplot as plt
 
-from qtt import quantics_generation, scatter_plot_f1f2, plot_interp_pivots
-from tensor_cross import TCI_2site, TT_CUR_L2R, nested_initIJ_gen_rank1
+from qtt import quantics_generation, scatter_plot_f1f2, plot_interp_pivots, QTT_randomSketch
 from qttm import QTTM_INTCONT, QTTM_INTCONT_NOEVAL
 from utils import Function_Collection
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
+from tensor_cross import TT_CUR_L2R, TCI_2site, nested_initIJ_gen_rank1
 
 ''' === Quantics representation construction === '''
 # Quantics construction
