@@ -7,7 +7,7 @@ import tensorly as tl
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-from tensor_cross import slice_first_modes, slice_last_modes
+from tci import slice_first_modes, slice_last_modes
 
 # Populate tensor using numpy.fromfunction
 def populate_tensor_fromfunction(dims, func):
@@ -98,8 +98,8 @@ def union_rows_bounded_random(A, B, max_rows):
     
     return C
 
-# Random sketching of the last digits of a given quantics tensor train for feature extraction
-def QTT_Sketching(QTT, sketch_dim, randomFlag, seed, skLayer):
+# Random/Integral sketching of the last digits of a given quantics tensor train for feature extraction
+def qtt_sketching(QTT, sketch_dim, randomFlag, seed, skLayer):
     # Sketching dimension, Random seeds, Sketching layers
     tensor_dim = len(QTT)   
     assert sketch_dim <= tensor_dim, "Sketching dimension should be smaller than or equal to tensor dimension"
@@ -140,6 +140,43 @@ def QTT_Sketching(QTT, sketch_dim, randomFlag, seed, skLayer):
     QTT_new[-1] = new_skcore    
     
     return QTT_new
+
+# Random/Integral sketching of the last several digits of a given quantics tensor train for feature extraction
+# The sketching TT-cores are kept in list as cache waiting for query in QTTM
+def qtt_sketching_cache(qtt, randomFlag, seed, skLayer):
+    dim = len(qtt)   
+    
+    # Formalize the new sketched QTT 
+    qtt_sketched = []
+
+    # No randomization -> integral sketching
+    if randomFlag == False:
+        skLayer = 1
+
+    # Random or Integral sketching
+    rd.seed(seed)
+    for l in range(skLayer):        
+        if randomFlag == True:
+            # Random 2-entry vector
+            x = rd.random()
+            y = 1 - x
+        else:
+            # Integral 2-entry vector
+            x = 0.5
+            y = 0.5
+        print(f"Sketching layer {l}: random vector {(x, y)}")
+        
+        # Sketching
+        skTT_1l = []
+        for d in range(dim):
+            core = qtt[d].copy()
+            sketch = x * core[:,0,:] + y * core[:,1,:]
+            skTT_1l.append(sketch)
+
+        qtt_sketched.append(skTT_1l)
+        skLayer = len(qtt_sketched)
+    
+    return qtt_sketched, skLayer
 
 # Integrate the QTT (right to left) in a given digit number
 def integral_qtt(QTT, integral_dim):
