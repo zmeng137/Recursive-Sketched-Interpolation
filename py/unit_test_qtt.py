@@ -1,13 +1,13 @@
+import os
+import sys
 import numpy as np
 import tensorly as tl
 
 from qtt import quantics_generation, QTT_Sketching, integral_qtt
 from utils import Function_Collection
 
-import os
-import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-from tensor_cross import TT_CUR_L2R
+from tci import TT_CUR_L2R
 
 def unit_test_1():
     '''Unit test for sketching of quantics tensor trains'''
