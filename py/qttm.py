@@ -50,6 +50,28 @@ def partial_recon_ele_check(f_tensor, interp_I, interp_J, offset, contract_core_
     
     return max_rel_err
 
+# Count operations of TT contraction 
+def tt_contraction_opcount(TT_factors):
+    # Dimension and first factor's shape
+    dim = len(TT_factors)
+    cont_shape = np.array(TT_factors[0].shape)
+
+    # Calculate the operation number
+    opcnt = 0
+    for d in range(1, dim):
+        fshape = np.array(TT_factors[d].shape)
+        assert cont_shape[-1] == fshape[0], "Contraction's last mode should be equal to the first mode of the next factor"
+        
+        # Count number of operations needed by contraction between two factors
+        opcnt = opcnt + int(np.prod(cont_shape) * np.prod(fshape) / cont_shape[-1])
+        
+        # Update contraction shape
+        cont_shape[-1] = fshape[1]
+        cont_shape = np.append(cont_shape, fshape[-1])
+        
+    size = np.prod(cont_shape)  # Size of full contraction
+    
+    return opcnt, size
 
 # QTTM algorithm with access of f1/f2 functions. Partial integral and contraction method.
 def qttm_intcont(f1_tensor, interp_I_f1, interp_J_f1, TTRank_f1, pr_set_f1,
@@ -411,6 +433,13 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
             f1_contract = np.tensordot(f1_contract, TT_cores_f1[passed_core_number + i], axes=([len(f1_contract.shape)-1],[0]))
             f2_contract = np.tensordot(f2_contract, TT_cores_f2[passed_core_number + i], axes=([len(f2_contract.shape)-1],[0]))
 
+        # TODO: We need to record the contraction size...
+        #verbose = True
+        #if verbose:
+        #    cont_op_f1, cont_sz_f1 = tt_contraction_opcount(TT_cores_f1[passed_core_number : passed_core_number + contract_core_number])
+        #    cont_op_f2, cont_sz_f2 = tt_contraction_opcount(TT_cores_f2[passed_core_number : passed_core_number + contract_core_number])
+        #    pass
+
         # Randomized sketching of f1/f2's QTT
         if sketch_number > 0:
             skCore_f1 = np.zeros([f1_contract.shape[-1], skLayer])
@@ -483,7 +512,8 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
     
     # Now I set is done. Let's try to figure out the J direction\
     # !! To be discussed here... Use 1-site TCI?
-    pass
+    # To be discussed... TODO...
+    '''
     for i in range(dim-2, 0, -1):
         ccore = Csubset_list[i] 
         cshape = ccore.shape
@@ -498,7 +528,8 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
             J[j,1:] = prev_J[p_J_idx]
             J[j,0] = c_J_idx
         interp_J_g_new[i+1] = J
+    '''
 
     end_time_QTTM = tm.time()
     print(f"QTTM INTCONT runtime: {end_time_QTTM - start_time_QTTM:.4f} seconds")
-    return interp_I_f1_gBasis, interp_J_g_new, TTRank_new, Zj_list
+    return interp_I_f1_gBasis, TTRank_new, Zj_list
