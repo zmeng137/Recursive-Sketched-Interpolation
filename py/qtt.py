@@ -2,54 +2,10 @@ import os
 import sys
 import numpy as np
 import random as rd
-import itertools
-import tensorly as tl
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
 from tci import slice_first_modes, slice_last_modes
-
-# Populate tensor using numpy.fromfunction
-def populate_tensor_fromfunction(dims, func):
-    # Populate tensor using numpy.fromfunction
-    def array_func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12):
-        return func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12)    
-    
-    # Use fromfunction to create the tensor
-    tensor_data = np.fromfunction(array_func, dims, dtype=int)
-    
-    return tl.tensor(tensor_data)
-
-# Scatter plot for f1, f2, g
-def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
-    plt.figure()
-    plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
-    
-    if f1_tensor is not None:
-        plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
-    if f2_tensor is not None:
-        plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
-    
-    plt.legend()
-    plt.grid()
-    plt.savefig("f1_f2_g.png")
-    
-    return
-
-# Generate quantics representation of a continuous function
-def quantics_generation(func, digit):
-    shape = tuple([2] * digit)   # Tensor shape 2^n
-    x_tensor = np.zeros(shape)   # Quantics x tensor
-    f_tensor = np.zeros(shape)   # Quantics function 
-    
-    # Generate all possible combinations of indices (0,1) for n dimensions
-    for indices in itertools.product([0, 1], repeat = digit):
-        # Calculate the value using the formula: x1/2 + x2/2^2 + ... + xn/2^n
-        value = sum(x / (2 ** (i + 1)) for i, x in enumerate(indices))
-        x_tensor[indices] = value
-        f_tensor[indices] = func(value)
-    
-    return x_tensor, f_tensor
 
 # Contract two adjacent TT-cores
 def adj_ttcore_contract(core1, core2):
@@ -158,19 +114,19 @@ def qtt_sketching_cache(qtt, randomFlag, seed, skLayer):
     for l in range(skLayer):        
         if randomFlag == True:
             # Random 2-entry vector
-            x = rd.random()
+            x = np.random.rand(dim)
             y = 1 - x
         else:
             # Integral 2-entry vector
-            x = 0.5
-            y = 0.5
-        print(f"Sketching layer {l}: random vector {(x, y)}")
+            x = 0.5 * np.ones(dim)
+            y = 0.5 * np.ones(dim)
+        print(f"Sketching layer {l}: random vectors {(x[0], y[0])}, ...")
         
         # Sketching
         skTT_1l = []
         for d in range(dim):
             core = qtt[d].copy()
-            sketch = x * core[:,0,:] + y * core[:,1,:]
+            sketch = x[d] * core[:,0,:] + y[d] * core[:,1,:]
             skTT_1l.append(sketch)
 
         qtt_sketched.append(skTT_1l)

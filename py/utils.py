@@ -1,6 +1,9 @@
-import numpy as np
-import h5py
 import os
+import h5py
+import itertools
+import numpy as np
+import tensorly as tl
+import matplotlib.pyplot as plt
 from datetime import datetime
 
 # Synthetic function collection
@@ -161,3 +164,60 @@ def convert_quantics_tensor_to_1d(quantics_tensor):
     function_1D[l2:]  = convert_quantics_tensor_to_1d(quantics_tensor_1)
 
     return function_1D
+
+# Compute the total size of a tensor train
+def size_tt(TTCores):
+    size = 0
+    for core in TTCores:
+        size += core.size
+    
+    return size
+
+# Populate tensor using numpy.fromfunction
+def populate_tensor_fromfunction(dims, func):
+    # Populate tensor using numpy.fromfunction
+    def array_func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12):
+        return func(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12)    
+    
+    # Use fromfunction to create the tensor
+    tensor_data = np.fromfunction(array_func, dims, dtype=int)
+    
+    return tl.tensor(tensor_data)
+
+# Scatter plot for f1, f2, g
+def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
+    plt.figure()
+    plt.scatter(x_tensor, g_tensor, s=8, alpha=0.8, linewidth=0.5, label='g')
+    
+    if f1_tensor is not None:
+        plt.scatter(x_tensor, f1_tensor, s=4, alpha=0.8, linewidth=0.5, label='f1')
+    if f2_tensor is not None:
+        plt.scatter(x_tensor, f2_tensor, s=4, alpha=0.8, linewidth=0.5, label='f2')
+    
+    plt.legend()
+    plt.grid()
+    plt.savefig("f1_f2_g.png")
+    
+    return
+
+# Generate quantics representation of a continuous function
+def quantics_generation(func, digit):
+    shape = tuple([2] * digit)   # Tensor shape 2^n
+    x_tensor = np.zeros(shape)   # Quantics x tensor
+    f_tensor = np.zeros(shape)   # Quantics function 
+    
+    # Generate all possible combinations of indices (0,1) for n dimensions
+    for indices in itertools.product([0, 1], repeat = digit):
+        # Calculate the value using the formula: x1/2 + x2/2^2 + ... + xn/2^n
+        value = sum(x / (2 ** (i + 1)) for i, x in enumerate(indices))
+        x_tensor[indices] = value
+        f_tensor[indices] = func(value)
+    
+    return x_tensor, f_tensor
+
+# Construct a synthetic quantics tensor from given formula
+def load_quantics_tensor_formula(form_no, dim):
+    func1 = Function_Collection[form_no]
+    x_tensor, f1_tensor = quantics_generation(func1, dim)
+    
+    return f1_tensor, x_tensor
