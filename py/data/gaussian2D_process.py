@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from the_well.data import WellDataset
 from utils import save_quantics_tensor_hdf5, load_quantics_tensor_hdf5, convert_1d_to_quantics_tensor, convert_quantics_tensor_to_1d
 
+from gaussian2D_parameter import components
 
 # Single 2D Gaussian function
 def gaussian_2d(x, y, mu_x, mu_y, sigma_x, sigma_y, rho=0):
@@ -67,44 +68,10 @@ x = np.linspace(-10, 10, 2 ** x_dim)
 y = np.linspace(-10, 10, 2 ** y_dim)
 X, Y = np.meshgrid(x, y)
 
-# Define mixture components
-components = [
-    {
-        'weight': 0.2,
-        'mu_x': -3,
-        'mu_y': 7,
-        'sigma_x': 3.5,
-        'sigma_y': 2.0,
-        'rho': 0.2
-    },
-    {
-        'weight': 0.3,
-        'mu_x': 6,
-        'mu_y': -8,
-        'sigma_x': 2.0,
-        'sigma_y': 2.5,
-        'rho': -0.4
-    },
-    {
-        'weight': 0.4,
-        'mu_x': -4,
-        'mu_y': 0,
-        'sigma_x': 3.0,
-        'sigma_y': 2.0,
-        'rho': 0.3
-    },
-    {
-        'weight': 0.1,
-        'mu_x': 5,
-        'mu_y': 5,
-        'sigma_x': 2.0,
-        'sigma_y': 1.0,
-        'rho': 0.5
-    }
-]
+comp = components[1]
     
 # Generate mixed Gaussian
-Z = mixed_gaussian_2d(X, Y, components)
+Z = mixed_gaussian_2d(X, Y, comp)
 
 # Print some statistics
 print(f"Maximum value: {np.max(Z):.6f}")
@@ -148,7 +115,7 @@ ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 
 plt.tight_layout()
-plt.savefig("mix_gaussian_0.png")
+plt.savefig("mix_gaussian_1.png")
 
 # Quantics tensor generation
 qtensor_from_func1d = convert_1d_to_quantics_tensor(Zfunction_1d, x_dim + y_dim)
@@ -157,7 +124,7 @@ func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
 print(f"Error - Function 1D -> quantics tensor -> Function 1D: {tl.norm(func1d_from_qtensor - Zfunction_1d)}")
 
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix2d_gaussian_0.hdf5"
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix2d_gaussian_1.hdf5"
 save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
