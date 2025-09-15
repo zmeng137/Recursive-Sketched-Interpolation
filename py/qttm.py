@@ -371,8 +371,6 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
              TT_cores_f2, interp_I_f2, TTRank_f2,
              contract_core_number, max_rank, eps,
              randomFlag, seed, skLayer):
-    start_time_QTTM = tm.time()
-
     # Preparation for g's I, J basis
     dim = len(TTRank_f1) - 1  # Tensor dimension
     TTRank_f1 = TTRank_f1.copy()
@@ -380,18 +378,34 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
     interp_I_f1_gBasis = interp_I_f1.copy()
     interp_I_f2_gBasis = interp_I_f2.copy()
     interp_J_g_new = {}
+    start_time_QTTM = tm.time()
     
     # Randomized sketching cache
+    start_time_sketch_cache = tm.time()
     f1_sk_tt, skLayer = qtt_sketching_cache(TT_cores_f1, randomFlag, seed, skLayer)
     f2_sk_tt, skLayer = qtt_sketching_cache(TT_cores_f2, randomFlag, seed, skLayer)
-
+    end_time_sketch_cache = tm.time()
+    elapsed_time_skcache = (end_time_sketch_cache - start_time_sketch_cache)
+    
     # Preliminary: Before iteration...
     passed_core_number = 0  # Iteration number
     r_g = 1                 # Next TT-Rank of g 
     Zj_list = []            # Interpolation Zj cores
     Csubset_list = []       # Skeleton C subset cores
     TTRank_new = [1]        # TT-rank list of g
-    
+    elapsed_time_sketching = 0
+    elapsed_time_contraction = 0
+    elapsed_time_decomp = 0
+    elapsed_time_product = 0
+    elapsed_time_basis = 0
+
+    # Statistics of contraction resource consumption
+    #stats_verbose = False
+    #contract_op_f1_total = 0
+    #contract_op_f2_total = 0
+    #contract_size_f1_max = 0
+    #contract_size_f2_max = 0
+
     # Hierarchical Integral-Contraction Iteration
     while passed_core_number < dim-1:
         # Check if we need to integrate the last cores
@@ -401,6 +415,7 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
 
         # Make sure that I interpolation in g basis are unified
         assert np.array_equal(interp_I_f1_gBasis[passed_core_number], interp_I_f2_gBasis[passed_core_number]), f"f1 and f2 interpolation g basis do not match at position {passed_core_number}"
+        start_contraction = tm.time()
         if passed_core_number > 0:
             # Cache contraction to approximate values not included in interpolation
             I_gbasis_curr = interp_I_f1_gBasis[passed_core_number]
@@ -432,15 +447,20 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
         for i in range(1, contract_core_number):
             f1_contract = np.tensordot(f1_contract, TT_cores_f1[passed_core_number + i], axes=([len(f1_contract.shape)-1],[0]))
             f2_contract = np.tensordot(f2_contract, TT_cores_f2[passed_core_number + i], axes=([len(f2_contract.shape)-1],[0]))
+        end_contraction = tm.time()
+        elapsed_time_contraction += (end_contraction - start_contraction)
 
         # TODO: We need to record the contraction size...
-        #verbose = True
-        #if verbose:
+        #if stats_verbose:
         #    cont_op_f1, cont_sz_f1 = tt_contraction_opcount(TT_cores_f1[passed_core_number : passed_core_number + contract_core_number])
         #    cont_op_f2, cont_sz_f2 = tt_contraction_opcount(TT_cores_f2[passed_core_number : passed_core_number + contract_core_number])
-        #    pass
+        #    contract_op_f1_total += cont_op_f1
+        #    contract_op_f2_total += cont_op_f2
+        #    contract_size_f1_max = max(cont_sz_f1, contract_size_f1_max)
+        #    contract_size_f2_max = max(cont_sz_f2, contract_size_f2_max)
 
         # Randomized sketching of f1/f2's QTT
+        start_sketching = tm.time()
         if sketch_number > 0:
             skCore_f1 = np.zeros([f1_contract.shape[-1], skLayer])
             skCore_f2 = np.zeros([f2_contract.shape[-1], skLayer])
@@ -456,11 +476,18 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
                 skCore_f2[:, l] = np.squeeze(sk_f2, axis=-1)
             f1_contract = f1_contract @ skCore_f1
             f2_contract = f2_contract @ skCore_f2
+        end_sketching = tm.time()
+        elapsed_time_sketching += (end_sketching - start_sketching)
 
         # Hadamard product
+        start_product = tm.time()
         TTint_contract_f1f2 = f1_contract * f2_contract
-            
-        # New pivot selection
+        end_product = tm.time()
+        elapsed_time_product += (end_product - start_product)
+
+        # New pivot selection (decomposition)
+        start_decomp = tm.time()
+        
         shape_contract_t = TTint_contract_f1f2.shape 
         mat_row = ma.prod(shape_contract_t[0:2])
         mat_col = ma.prod(shape_contract_t[2:])
@@ -478,6 +505,9 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
             last_core = tl.reshape(r_subset, [rank, 2, 1])
             Zj_list.append(last_core)
         
+        end_decomp = tm.time()
+        elapsed_time_decomp += (end_decomp - start_decomp)
+        
         r_g = rank
         TTRank_new.append(rank)
         TTRank_f1[passed_core_number+1] = rank
@@ -485,6 +515,8 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
         print(f"Tensor contraction {TTint_contract_f1f2.shape} -> Matrix {skTT_matrix.shape} -> rank revealing -> Z core {Z_core.shape}")
 
         # Mapping between r/c selection and tensor index pivots
+        start_basis = tm.time()
+        
         if passed_core_number == 0:
             interp_I_f1_gBasis[passed_core_number+1] = np.array(pr).reshape(-1, 1)
             interp_I_f2_gBasis[passed_core_number+1] = np.array(pr).reshape(-1, 1)
@@ -508,6 +540,10 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
         passed_core_number += 1
         if sketch_number == 0:
             contract_core_number = dim - passed_core_number
+        
+        end_basis = tm.time()
+        elapsed_time_basis += (end_basis - start_basis)
+    
     TTRank_new.append(1)
     
     # Now I set is done. Let's try to figure out the J direction\
@@ -531,5 +567,17 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
     '''
 
     end_time_QTTM = tm.time()
-    print(f"QTTM INTCONT runtime: {end_time_QTTM - start_time_QTTM:.4f} seconds")
+
+    print(f"Runtime of the entire QTTM algorithm: {(end_time_QTTM - start_time_QTTM) * 1000:.2f} ms. The detailed profiling statistics:")
+    print(f"Elapsed time of caching sketched cores: {elapsed_time_skcache * 1000:.2f} ms")
+    print(f"Elapsed time of sketching QTT: {elapsed_time_sketching * 1000:.2f} ms")
+    print(f"Elapsed time of partial contraction: {elapsed_time_contraction * 1000:.2f} ms")
+    print(f"Elapsed time of hadamard product: {elapsed_time_product * 1000:.2f} ms")
+    print(f"Elapsed time of TTID decomposition: {elapsed_time_decomp * 1000:.2f} ms")
+    print(f"Elapsed time of basis update: {elapsed_time_basis * 1000:.2f} ms")
+    print(f"Elapsed time of sketching + contraction + decomposition: {(elapsed_time_skcache + elapsed_time_sketching + elapsed_time_contraction + elapsed_time_decomp) * 1000:.2f} ms")
+
+    #print(f"Contraction statistics of f1 -- Total ops: {contract_op_f1_total}, Max size: {contract_size_f1_max}")
+    #print(f"Contraction statistics of f2 -- Total ops: {contract_op_f2_total}, Max size: {contract_size_f2_max}")
+
     return interp_I_f1_gBasis, TTRank_new, Zj_list
