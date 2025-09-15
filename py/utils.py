@@ -221,3 +221,13 @@ def load_quantics_tensor_formula(form_no, dim):
     x_tensor, f1_tensor = quantics_generation(func1, dim)
     
     return f1_tensor, x_tensor
+
+def tt_to_tensor_tensordot(TT):
+    # Tensor train -> Reconstructed tensor
+    tt_cores = TT.copy()    
+    result = tt_cores[0]
+    for i in range(1, len(tt_cores)):
+        result = np.tensordot(result, tt_cores[i], axes=([result.ndim-1], [0]))
+    result = np.squeeze(result, axis=-1)
+    
+    return result
