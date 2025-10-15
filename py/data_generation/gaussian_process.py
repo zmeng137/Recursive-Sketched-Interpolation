@@ -155,7 +155,7 @@ func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
 print(f"Error - Function 1D -> quantics tensor -> Function 1D: {tl.norm(func1d_from_qtensor - Gaussfunction_1d)}")
 
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix2d_gaussian_4.hdf5"
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix4d_gaussian_1.hdf5"
 save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
