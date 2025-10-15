@@ -62,13 +62,13 @@ def mixed_gaussian_2d(x, y, components):
     
     return result
 
-x_dim = 8
-y_dim = 8
+x_dim = 10
+y_dim = 10
 x = np.linspace(-10, 10, 2 ** x_dim)
 y = np.linspace(-10, 10, 2 ** y_dim)
 X, Y = np.meshgrid(x, y)
 
-comp = components[1]
+comp = components[0]
     
 # Generate mixed Gaussian
 Z = mixed_gaussian_2d(X, Y, comp)
@@ -124,7 +124,7 @@ func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
 print(f"Error - Function 1D -> quantics tensor -> Function 1D: {tl.norm(func1d_from_qtensor - Zfunction_1d)}")
 
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix2d_gaussian_1.hdf5"
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix2d_gaussian_0.hdf5"
 save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
