@@ -6,29 +6,20 @@ import math as ma
 import tensorly as tl
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-from tci import single_core_interp_assemble, cross_core_interp_assemble, cross_inv_merge_stable, coreinv_qr, coreinv_lu, slice_first_modes, slice_last_modes
-from interpolation import cur_prrldu, interpolative_prrldu
-from rank_revealing import prrldu
-from qtt import Qintegral_TT, adj_ttcore_contract, qtt_sketching_cache
-
-# TODO...
-# 1. Performance (runtime) profiling
-# 2. New assemble of f1/f2 TT-core need to trust interpolation
-# 3. Check the repeated operations
-
+from interpolation import interpolative_prrldu
+from qtt import adj_ttcore_contract, qtt_sketching_cache
 
 # QTTM-RIC: (Q)uantics (T)ensor (T)rain (M)ultiplication via (R)andomized (I)nterpolation and (C)ontraction.
-def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
-             TT_cores_f2, interp_I_f2, TTRank_f2,
-             contract_core_number, max_rank, eps,
-             randomFlag, seed, skLayer):
-    # Preparation for g's I, J basis
+def multiply_qtt(TT_cores_f1, interp_I_f1, TTRank_f1,
+                 TT_cores_f2, interp_I_f2, TTRank_f2,
+                 contract_core_number, max_rank, eps,
+                 randomFlag, seed, skLayer):
+    # Preparation for g's I interpolation basis
     dim = len(TTRank_f1) - 1  # Tensor dimension
     TTRank_f1 = TTRank_f1.copy()
     TTRank_f2 = TTRank_f2.copy()
     interp_I_f1_gBasis = interp_I_f1.copy()
     interp_I_f2_gBasis = interp_I_f2.copy()
-    interp_J_g_new = {}
     start_time_QTTM = tm.time()
     
     # Randomized sketching cache
@@ -41,8 +32,8 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
     # Preliminary: Before iteration...
     passed_core_number = 0  # Iteration number
     r_g = 1                 # Next TT-Rank of g 
-    Zj_list = []            # Interpolation Zj cores
-    TTRank_new = [1]        # TT-rank list of g
+    TT_Cores_g = []            # Interpolation Zj cores
+    TTRank_g = [1]        # TT-rank list of g
     
     # Elapsed time
     elapsed_time_sketching = 0
@@ -137,17 +128,17 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
         rank = r_subset.shape[0]  # r_i-1 = min(r_max, r_delta_i)
 
         Z_core = tl.reshape(Z_core, [r_g, 2, rank])
-        Zj_list.append(Z_core)
+        TT_Cores_g.append(Z_core)
 
         if passed_core_number == dim-2:
             last_core = tl.reshape(r_subset, [rank, 2, 1])
-            Zj_list.append(last_core)
+            TT_Cores_g.append(last_core)
         
         end_decomp = tm.time()
         elapsed_time_decomp += (end_decomp - start_decomp)
         
         r_g = rank
-        TTRank_new.append(rank)
+        TTRank_g.append(rank)
         TTRank_f1[passed_core_number+1] = rank
         TTRank_f2[passed_core_number+1] = rank
         print(f"Tensor contraction {TTint_contract_f1f2.shape} -> Matrix {skTT_matrix.shape} -> rank revealing -> Z core {Z_core.shape}")
@@ -179,7 +170,7 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
         end_basis = tm.time()
         elapsed_time_basis += (end_basis - start_basis)
     
-    TTRank_new.append(1)
+    TTRank_g.append(1)
 
     end_time_QTTM = tm.time()
 
@@ -192,4 +183,4 @@ def qttm_ric(TT_cores_f1, interp_I_f1, TTRank_f1,
     print(f"Elapsed time of basis update: {elapsed_time_basis * 1000:.2f} ms")
     print(f"Elapsed time of sketching + contraction + decomposition: {(elapsed_time_skcache + elapsed_time_sketching + elapsed_time_contraction + elapsed_time_decomp) * 1000:.2f} ms")
 
-    return interp_I_f1_gBasis, TTRank_new, Zj_list
+    return interp_I_f1_gBasis, TTRank_g, TT_Cores_g
