@@ -133,7 +133,7 @@ x4 = np.linspace(-5, 5, grid_size)
 X1, X2, X3, X4 = np.meshgrid(x1, x2, x3, x4, indexing='ij')
 
 # Now pass the meshgrids
-mix_gauss_4d = mixed_gaussian_nd(X1, X2, X3, X4, components=components[3])
+mix_gauss_4d = mixed_gaussian_nd(X1, X2, X3, X4, components=components[2])
 
 # Print some statistics
 print(f"Maximum value: {np.max(mix_gauss_4d):.6f}")
@@ -155,8 +155,18 @@ func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
 print(f"Error - Function 1D -> quantics tensor -> Function 1D: {tl.norm(func1d_from_qtensor - Gaussfunction_1d)}")
 
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix4d_gaussian_1.hdf5"
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix4d_gaussian_0.hdf5"
 save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
 print(f"Difference between the real tensor and hdf5-loaded tensor: {tl.norm(qtensor_from_func1d - qtensor_new)}")
+
+# Plot the 1D flattened Gaussian function
+plt.figure(figsize=(12, 6))
+plt.plot(Gaussfunction_1d, linewidth=0.5)
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title(f'1D Flattened 4D Gaussian Function (Total points: {len(Gaussfunction_1d)})')
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('1d_flattened_gaussian.png', dpi=150)
