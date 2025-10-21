@@ -5,7 +5,7 @@ import tensorly as tl
 import matplotlib.pyplot as plt
 
 from qtt import quantics_generation, scatter_plot_f1f2, plot_interp_pivots, qtt_sketching_cache
-from qttm import qttm_intcont_noeval, qttm_ric, tt_contraction_opcount
+from multiply import qttm_intcont_noeval, qttm_ric, tt_contraction_opcount
 from utils import Function_Collection, size_tt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
