@@ -45,34 +45,6 @@ def functional_qtt(g_func, TTcores_f, interp_I_f,
         sketch_number = temp if temp > 0 else 0 
         free_dim = TTcores_f[passed_core_number].shape[1]
         print(f"# sketch: {sketch_number}, # contraction {contract_core_number}, # passed core {passed_core_number}.")
-
-        ''' (iii) Re-interpolation of f's TT-core at the current iteration '''
-        start_reinterp = tm.time()
-        if passed_core_number > 0:
-            # Cache contraction to approximate values not included in interpolation
-            I_gbasis_curr = interp_I_gBasis[passed_core_number]
-            I_gbasis_prev = interp_I_gBasis[passed_core_number - 1]
-            cache_contract_f = adj_ttcore_contract(TTcores_f[passed_core_number-1], TTcores_f[passed_core_number])
-
-            # New shape of f's current core after re-interpolation
-            new_core_shape = [len(I_gbasis_curr), free_dim, len(interp_I_f[passed_core_number + 1])]   
-            curr_core_f = np.empty(new_core_shape)
-
-            # Get approximated TT-cores interpolated by new g basis
-            for i in range(len(I_gbasis_curr)):
-                curr_pivot_i = I_gbasis_curr[i]
-                last_pivot = curr_pivot_i[-1].astype(int)    
-                arg_idx = 0     
-                if passed_core_number > 1:
-                    prev_pivot = curr_pivot_i[0:-1]
-                    matches = np.all(I_gbasis_prev == prev_pivot, axis = 1)
-                    arg_idx = np.where(matches)[0][0]
-                curr_core_f[i, :, :] = cache_contract_f[arg_idx, last_pivot, :, :]
-            
-            TTcores_f[passed_core_number] = curr_core_f
-        
-        end_reinterp = tm.time()
-        elapsed_time_reinterp += (end_reinterp - start_reinterp)
              
         ''' (i) Sketching and Contraction '''
         # Contraction (partially) of f's TT-cores 
@@ -120,7 +92,7 @@ def functional_qtt(g_func, TTcores_f, interp_I_f,
         Z_core = tl.reshape(Z_core, [r_g, free_dim, rank])
         TTcores_g.append(Z_core)
 
-        if passed_core_number == dim-2:
+        if passed_core_number == dim - 2:
             last_core = tl.reshape(r_subset, [rank, TTcores_f[-1].shape[1], 1])
             TTcores_g.append(last_core)
         
@@ -144,13 +116,42 @@ def functional_qtt(g_func, TTcores_f, interp_I_f,
                 I[j,0:passed_core_number] = prev_I[p_I_idx]
                 I[j,passed_core_number] = c_i_idx
             interp_I_gBasis[passed_core_number+1] = I
+        
+        end_updbasis = tm.time()
+        elapsed_time_updpivot += (end_updbasis - start_updbasis)
+
+        ''' (iii) Re-interpolation of f's TT-core at the current iteration after sketching + functional + decomposition '''
+        start_reinterp = tm.time()
+        if passed_core_number <  dim - 2:
+            # Cache contraction to approximate values not included in interpolation
+            I_gbasis_next = interp_I_gBasis[passed_core_number + 1]
+            I_gbasis_curr = interp_I_gBasis[passed_core_number]
+            cache_contract_f = adj_ttcore_contract(TTcores_f[passed_core_number], TTcores_f[passed_core_number + 1])
+
+            # New shape of f's current core after re-interpolation
+            new_core_shape = [len(I_gbasis_next), free_dim, len(interp_I_f[passed_core_number + 2])]   
+            curr_core_f = np.empty(new_core_shape)
+
+            # Get approximated TT-cores interpolated by new g basis
+            for i in range(len(I_gbasis_next)):
+                curr_pivot_i = I_gbasis_next[i]
+                last_pivot = curr_pivot_i[-1].astype(int)    
+                arg_idx = 0     
+                if passed_core_number > 0:
+                    prev_pivot = curr_pivot_i[0:-1]
+                    matches = np.all(I_gbasis_curr == prev_pivot, axis = 1)
+                    arg_idx = np.where(matches)[0][0]
+                curr_core_f[i, :, :] = cache_contract_f[arg_idx, last_pivot, :, :]
+            
+            # New f's TT-core after re-interpolation
+            TTcores_f[passed_core_number + 1] = curr_core_f
+        
+        end_reinterp = tm.time()
+        elapsed_time_reinterp += (end_reinterp - start_reinterp)
 
         passed_core_number += 1
         if sketch_number == 0:
             contract_core_number = dim - passed_core_number
-        
-        end_updbasis = tm.time()
-        elapsed_time_updpivot += (end_updbasis - start_updbasis)
     
     TTRank_g.append(1)
     end_time = tm.time()
