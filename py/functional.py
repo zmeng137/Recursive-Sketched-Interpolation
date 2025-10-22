@@ -129,7 +129,7 @@ def functional_qtt(g_func, TTcores_f, interp_I_f,
             cache_contract_f = adj_ttcore_contract(TTcores_f[passed_core_number], TTcores_f[passed_core_number + 1])
 
             # New shape of f's current core after re-interpolation
-            new_core_shape = [len(I_gbasis_next), free_dim, len(interp_I_f[passed_core_number + 2])]   
+            new_core_shape = [len(I_gbasis_next), TTcores_f[passed_core_number+1].shape[1], len(interp_I_f[passed_core_number + 2])]   
             curr_core_f = np.empty(new_core_shape)
 
             # Get approximated TT-cores interpolated by new g basis
