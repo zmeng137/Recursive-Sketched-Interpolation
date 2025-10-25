@@ -1,0 +1,47 @@
+import os
+import sys
+import numpy as np
+import time as tm
+import tensorly as tl
+import matplotlib.pyplot as plt
+
+from utils import load_quantics_tensor_hdf5, convert_quantics_tensor_to_1d, size_tt, load_quantics_tensor_formula, tt_to_tensor_tensordot
+from functional import functional_tt
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
+from tci import TT_IDPRRLDU_L2R
+
+g_func = lambda x: np.cos(-2*x) * x + 2 - np.sin(3 * x) - x**3 / 100 + np.exp(-x*x/10)
+
+shape = [5, 5, 5, 5, 5, 5, 5, 5]
+ttrank = [1, 4, 11, 8, 10, 25, 8, 3, 1]
+seed = 1
+random_tt = tl.random.random_tt(shape, ttrank, False, seed)
+syn_tensor = tl.tt_to_tensor(random_tt)
+syn_tensor_g = g_func(syn_tensor)
+
+r_max = 30
+eps = 1e-10
+TTCore, TTRank, InterpSet_I = TT_IDPRRLDU_L2R(syn_tensor, r_max, eps, 0)
+error =  tl.norm(syn_tensor - tl.tt_to_tensor(TTCore)) / tl.norm(syn_tensor)
+print(f"Relative error (vs real f) at r_max = {r_max}: {error}")
+
+r_max = 30
+eps = 1e-10
+TTCore_g, TTRank_g, InterpSet_I_g = TT_IDPRRLDU_L2R(syn_tensor_g, r_max, eps, 0)
+error_g =  tl.norm(syn_tensor_g - tl.tt_to_tensor(TTCore_g)) / tl.norm(syn_tensor_g)
+print(f"Relative error (vs real g[f]) at r_max = {r_max}: {error_g}")
+
+InterpSet_I[0] = []
+contract_number = 3
+r_max = 30
+randomFlag = 1
+seed = 0
+eps=1e-10
+skLayer = 10
+interp_I_g, TTRank_g, TT_cores_g = functional_tt(g_func, TTCore, contract_number, r_max, eps, randomFlag, seed, skLayer)
+
+recon_g_sk = tl.tt_to_tensor(TT_cores_g)
+error_vs_real = tl.norm(syn_tensor_g - recon_g_sk) / tl.norm(syn_tensor_g)
+print(f"TT-rank of new QTT of g: {TTRank_g}")
+print(f"Relative error (vs real g) at r_max = {r_max}: {error_vs_real}")
