@@ -9,10 +9,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py
 from interpolation import interpolative_prrldu
 from qtt import adj_ttcore_contract, qtt_sketching_cache
 
-# Compute g(f(x)) where f(x) is a QTT-approximated function
-def functional_qtt(g_func, TTcores_f, interp_I_f, 
-                   contract_core_number, max_rank, eps,
-                   randomFlag, seed, skLayer):
+# Compute the g(f(x)) where f(x) is a TT-approximated function
+def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, randomFlag, seed, skLayer):
     # Randomized sketching cache
     start_time = tm.time()
     start_time_sketch_cache = tm.time()
@@ -28,7 +26,6 @@ def functional_qtt(g_func, TTcores_f, interp_I_f,
     TTRank_g = [1]          # TT-rank list of g
     interp_I_gBasis = {}    # Initialize g's interpolation index set
     interp_I_gBasis[0] = []
-    interp_I_gBasis[1] = interp_I_f[1].copy()
     
     # Elapsed time
     elapsed_time_sketching = 0
@@ -129,7 +126,7 @@ def functional_qtt(g_func, TTcores_f, interp_I_f,
             cache_contract_f = adj_ttcore_contract(TTcores_f[passed_core_number], TTcores_f[passed_core_number + 1])
 
             # New shape of f's current core after re-interpolation
-            new_core_shape = [len(I_gbasis_next), TTcores_f[passed_core_number+1].shape[1], len(interp_I_f[passed_core_number + 2])]   
+            new_core_shape = [len(I_gbasis_next), TTcores_f[passed_core_number+1].shape[1], TTcores_f[passed_core_number+1].shape[2]]   
             curr_core_f = np.empty(new_core_shape)
 
             # Get approximated TT-cores interpolated by new g basis
