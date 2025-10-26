@@ -7,16 +7,6 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
 from tci import slice_first_modes, slice_last_modes
 
-# Contract two adjacent TT-cores
-def adj_ttcore_contract(core1, core2):
-    if core1.shape[2] != core2.shape[0]:
-        raise ValueError(f"Incompatible shapes: core1 rank {core1.shape[2]} != core2 rank {core2.shape[0]}")
-    
-    # Perform the contraction via einsum
-    contracted = np.einsum('air,rjb->aijb', core1, core2)
-    
-    return contracted
-
 # Union rows of two arrays with a maximum row limit
 def union_rows_bounded(A, B, max_rows):
     A = np.array(A)
@@ -98,7 +88,7 @@ def qtt_sketching(QTT, sketch_dim, randomFlag, seed, skLayer):
     return QTT_new
 
 # Random/Integral sketching of the last several digits of a given quantics tensor train for feature extraction
-# The sketching TT-cores are kept in list as cache waiting for query in QTTM
+# The sketching TT-cores are kept in list as cache waiting for query
 def qtt_sketching_cache(qtt, randomFlag, seed, skLayer):
     dim = len(qtt)   
     
