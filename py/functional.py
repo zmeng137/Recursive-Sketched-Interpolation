@@ -7,18 +7,13 @@ import tensorly as tl
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
 from interpolation import interpolative_prrldu
-from qtt import adj_ttcore_contract, qtt_sketching_cache
+from utils import adj_ttcore_contract
+from sketch import tt_sketching_cache
 
 # Compute the g(f(x)) where f(x) is a TT-approximated function
-def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, randomFlag, seed, skLayer):
-    # Randomized sketching cache
+def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, over_sampling, seed):
+    # Preparation: Before start ...
     start_time = tm.time()
-    start_time_sketch_cache = tm.time()
-    f_sk_tt, skLayer = qtt_sketching_cache(TTcores_f, randomFlag, seed, skLayer)
-    end_time_sketch_cache = tm.time()
-    elapsed_time_skcache = end_time_sketch_cache - start_time_sketch_cache
-    
-    # Preliminary: Before iteration...
     dim = len(TTcores_f)    # Tensor dimension
     passed_core_number = 0  # Iteration number
     r_g = 1                 # Next TT-Rank of g 
@@ -35,6 +30,13 @@ def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, random
     elapsed_time_updpivot = 0
     elapsed_time_reinterp = 0
     
+    # Randomized sketching cache
+    start_time_sketch_cache = tm.time()
+    sk_tail_number = dim - contract_core_number
+    f_sk_tt = tt_sketching_cache(TTcores_f, sk_tail_number, over_sampling, seed)
+    end_time_sketch_cache = tm.time()
+    elapsed_time_skcache = end_time_sketch_cache - start_time_sketch_cache
+
     # Recursive Interpolative Sketching 
     while passed_core_number < dim-1:
         # Check if we need to integrate the last cores
@@ -55,12 +57,11 @@ def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, random
         # Randomized sketching of f's QTT
         start_sketching = tm.time()
         if sketch_number > 0:
-            skCore_f = np.zeros([f_contract.shape[-1], skLayer])
-            for l in range(skLayer):
-                sk_f = f_sk_tt[l][-1]
-                for i in range(dim - 2, dim - sketch_number - 1, -1):
-                    sub_int_f = f_sk_tt[l][i]
-                    sk_f = sub_int_f @ sk_f
+            skCore_f = np.zeros([f_contract.shape[-1], over_sampling])
+            for l in range(over_sampling):
+                sk_f = f_sk_tt[passed_core_number][:,l,:].copy()
+                for i in range(passed_core_number + 1, sk_tail_number):
+                    sk_f = sk_f @ f_sk_tt[i][:,l,:]
                 skCore_f[:, l] = np.squeeze(sk_f, axis=-1)
             f_contract = f_contract @ skCore_f
         end_sketching = tm.time()

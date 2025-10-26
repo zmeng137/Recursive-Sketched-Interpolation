@@ -7,19 +7,13 @@ import tensorly as tl
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
 from interpolation import interpolative_prrldu
-from qtt import adj_ttcore_contract, qtt_sketching_cache
+from utils import adj_ttcore_contract
+from sketch import tt_sketching_cache
 
-# Compute the hadamard product of two TT-approximated functions f1(x) and f2(x)
-def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, randomFlag, seed, skLayer):
-    # Randomized sketching cache
+# Compute the hadamard product of two tensor networks (in TT format)
+def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, over_sampling, seed):
+    # Preparation: Before start ...
     start_time = tm.time()
-    start_time_sketch_cache = tm.time()
-    f1_sk_tt, skLayer = qtt_sketching_cache(TT_cores_f1, randomFlag, seed, skLayer)
-    f2_sk_tt, skLayer = qtt_sketching_cache(TT_cores_f2, randomFlag, seed, skLayer)
-    end_time_sketch_cache = tm.time()
-    elapsed_time_skcache = (end_time_sketch_cache - start_time_sketch_cache)
-    
-    # Preliminary: Before iteration...
     assert len(TT_cores_f1) == len(TT_cores_f2), "Tensor dimensions of f1 and f2 do not match."
     dim = len(TT_cores_f1)   # Tensor dimension
     passed_core_number = 0   # Iteration number
@@ -36,6 +30,14 @@ def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, r
     elapsed_time_product = 0
     elapsed_time_updpivot = 0
     elapsed_time_reinterp = 0
+
+    # Randomized sketching cache
+    start_time_sketch_cache = tm.time()
+    sk_tail_number = dim - contract_core_number
+    f1_sk_tt = tt_sketching_cache(TT_cores_f1, sk_tail_number, over_sampling, seed)
+    f2_sk_tt = tt_sketching_cache(TT_cores_f2, sk_tail_number, over_sampling, seed)
+    end_time_sketch_cache = tm.time()
+    elapsed_time_skcache = end_time_sketch_cache - start_time_sketch_cache
 
     # Recursive Interpolative Sketching 
     while passed_core_number < dim-1:
@@ -62,16 +64,14 @@ def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, r
         # Randomized sketching of f1/f2's QTT
         start_sketching = tm.time()
         if sketch_number > 0:
-            skCore_f1 = np.zeros([f1_contract.shape[-1], skLayer])
-            skCore_f2 = np.zeros([f2_contract.shape[-1], skLayer])
-            for l in range(skLayer):
-                sk_f1 = f1_sk_tt[l][-1]
-                sk_f2 = f2_sk_tt[l][-1]
-                for i in range(dim - 2, dim - sketch_number - 1, -1):
-                    sub_int_f1 = f1_sk_tt[l][i]
-                    sub_int_f2 = f2_sk_tt[l][i]
-                    sk_f1 = sub_int_f1 @ sk_f1
-                    sk_f2 = sub_int_f2 @ sk_f2
+            skCore_f1 = np.zeros([f1_contract.shape[-1], over_sampling])
+            skCore_f2 = np.zeros([f2_contract.shape[-1], over_sampling])
+            for l in range(over_sampling):
+                sk_f1 = f1_sk_tt[passed_core_number][:,l,:].copy()
+                sk_f2 = f2_sk_tt[passed_core_number][:,l,:].copy()
+                for i in range(passed_core_number + 1, sk_tail_number):
+                    sk_f1 = sk_f1 @ f1_sk_tt[i][:,l,:]
+                    sk_f2 = sk_f2 @ f2_sk_tt[i][:,l,:]
                 skCore_f1[:, l] = np.squeeze(sk_f1, axis=-1)
                 skCore_f2[:, l] = np.squeeze(sk_f2, axis=-1)
             f1_contract = f1_contract @ skCore_f1
@@ -101,7 +101,6 @@ def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, r
 
         Z_core = tl.reshape(Z_core, [r_g, free_dim, rank])
         TT_Cores_g.append(Z_core)
-
         if passed_core_number == dim - 2:
             last_core = tl.reshape(r_subset, [rank, TT_cores_f1[-1].shape[1], 1])
             TT_Cores_g.append(last_core)
@@ -126,7 +125,6 @@ def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, r
                 I[j,0:passed_core_number] = prev_I[p_I_idx]
                 I[j,passed_core_number] = c_i_idx
             interp_I_gBasis[passed_core_number+1] = I
-        
         end_updbasis = tm.time()
         elapsed_time_updpivot += (end_updbasis - start_updbasis)
 
