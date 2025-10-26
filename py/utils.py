@@ -231,3 +231,13 @@ def tt_to_tensor_tensordot(TT):
     result = np.squeeze(result, axis=-1)
     
     return result
+
+# Contract two adjacent TT-cores
+def adj_ttcore_contract(core1, core2):
+    if core1.shape[2] != core2.shape[0]:
+        raise ValueError(f"Incompatible shapes: core1 rank {core1.shape[2]} != core2 rank {core2.shape[0]}")
+    
+    # Perform the contraction via einsum
+    contracted = np.einsum('air,rjb->aijb', core1, core2)
+    
+    return contracted
