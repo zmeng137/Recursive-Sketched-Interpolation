@@ -162,4 +162,4 @@ def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, over_s
     print(f"Elapsed time of interpolative decomposition: {elapsed_time_decomp * 1000:.2f} ms")
     print(f"Elapsed time of basis update: {elapsed_time_updpivot * 1000:.2f} ms")
 
-    return interp_I_gBasis, TTRank_g, TTcores_g
+    return TTcores_g, TTRank_g, interp_I_gBasis
