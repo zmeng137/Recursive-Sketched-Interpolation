@@ -20,8 +20,8 @@ from tci import TT_IDPRRLDU_L2R
 filePath_f1 = "/home/zmeng5/QTTM/datasets/qtensor_gaussian/mix4d_gaussian_0.hdf5"
 qtensor_f, metadata_f = load_quantics_tensor_hdf5(filePath_f1)
 
-#g_func = lambda x: x ** 2 - 3 * x + 10 + 0.4 * np.exp(x)
-g_func = lambda x: np.cos(-np.exp(-x*x/12*np.pi) + x**3 - 12 + 15.2*np.sin(10*np.pi*x)*np.exp(x-1))
+g_func = lambda x: x ** 2 - 3 * x + 10 + 0.4 * np.exp(x)
+#g_func = lambda x: np.cos(-np.exp(-x*x/12*np.pi) + x**3 - 12 + 15.2*np.sin(10*np.pi*x)*np.exp(x-1))
 
 # Real g = f1 * f2
 real_g = g_func(qtensor_f)
@@ -29,15 +29,10 @@ real_g = g_func(qtensor_f)
 
 ''' Tensor Train Decomposition '''
 # TT-CUR Left->Right (One side)
-r_max_f = 25
+r_max_f = 40
 eps = 1e-10
 TTCore_f, TTRank_f, InterpSet_I_f = TT_IDPRRLDU_L2R(qtensor_f, r_max_f, eps, 0)
 InterpSet_I_f[0] = []
-
-# Statistics for TT reconstruction
-#recon_op_f1, recon_sz_f1 = tt_contraction_opcount(TTCore_f1)
-#print(f"Size of f1 full tensor {qtensor_f1.size}. Size of f1 QTT {size_tt(TTCore_f1)}")
-#print(f"Reconstruction statistics of TTCore_f1 -- Total ops: {recon_op_f1}, Max size: {recon_sz_f1}")
 
 # Reconstruction test
 recon_f = tl.tt_to_tensor(TTCore_f)
@@ -47,7 +42,7 @@ print(f"Relative error: f1 (r_max = {r_max_f}): {error_f}")
 # QTTM: RED method
 # (i) Reconstruction
 start_t_recon = tm.time()
-r_max = 30
+r_max = 40
 recon_f = tt_to_tensor_tensordot(TTCore_f)
 end_t_recon = tm.time()
 
@@ -77,13 +72,10 @@ print(f"Relative error (vs recon g) at r_max = {r_max}: {error_g_red_recon}")
 
 # Get new g's I, J sets from f1 TCI and f2 TCI via the integral method
 contract_number = 2
-r_max = 60
-randomFlag = 1
-seed = 0
-skLayer = 50
-
-interp_I_g, TTRank_g, TT_cores_g = functional_tt(
-    g_func, TTCore_f, InterpSet_I_f, contract_number, r_max, eps, randomFlag, seed, skLayer)
+r_max = 40
+seed = 10
+over_sampling = 40
+interp_I_g, TTRank_g, TT_cores_g = functional_tt(g_func, TTCore_f, contract_number, r_max, eps, over_sampling, seed)
 
 recon_g_sk = tl.tt_to_tensor(TT_cores_g)
 error_vs_real = tl.norm(real_g - recon_g_sk) / tl.norm(real_g)
@@ -92,6 +84,7 @@ print(f"TT-rank of new QTT of g: {TTRank_g}")
 print(f"Relative error (vs real g) at r_max = {r_max}: {error_vs_real}")
 print(f"Relative error (vs recon g) at r_max = {r_max}: {error_vs_recon}")
 
+'''
 # Plot the 1D flattened Gaussian function
 realg_1d = convert_quantics_tensor_to_1d(real_g)
 qttmg_1d = convert_quantics_tensor_to_1d(recon_g_sk)
@@ -105,3 +98,4 @@ plt.grid(True, alpha=0.3)
 plt.legend()
 plt.tight_layout()
 plt.savefig('1d_flattened_gaussian.png', dpi=150)
+'''

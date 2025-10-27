@@ -82,12 +82,11 @@ print(f"Relative error (vs recon g) at r_max = {r_max}: {error_g_red_recon}")
 
 
 # Get new g's I, J sets from f1 TCI and f2 TCI via the integral method
-contract_number = 4
-r_max = 35
-randomFlag = 1
-seed = 1
-skLayer = 30
-interp_I_g, TTRank_g, TT_cores_g = multiply_tt(TTCore_f1, TTCore_f2, contract_number, r_max, eps, randomFlag, seed, skLayer)
+contract_number = 2
+r_max = 50
+seed = 10
+skLayer = 40
+interp_I_g, TTRank_g, TT_cores_g = multiply_tt(TTCore_f1, TTCore_f2, contract_number, r_max, eps, skLayer, seed)
 
 recon_g_sk = tl.tt_to_tensor(TT_cores_g)
 error_vs_real = tl.norm(real_g - recon_g_sk) / tl.norm(real_g)
