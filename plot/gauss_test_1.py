@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+import matplotlib.ticker as ticker
 
 # input f1/f2 tt 20-digit: r_max = 10, rel_error ~1e-13/1e-14/1e-16 vs real f1/f2
 # contract_number = 2 sketch_dim = 20 eps = 0
@@ -64,28 +65,34 @@ for i, test_case in enumerate(test_cases):
     ax1.plot(x, F1, linewidth=2.5, label=r'$f_1$', color=f1_color)
     ax1.plot(x, F2, linewidth=2.5, label=r'$f_2$', color=f2_color)
     ax1.plot(x, G, linewidth=3, label=r'$g=f_1 f_2$', color=g_color)
-    ax1.set_xlabel('x', fontsize=15)
+    ax1.set_xlabel('x', fontsize=15,labelpad=-3)
     
-    ax1.set_title(f'{test_case["name"]}',fontsize=15)
+    ax1.set_title(f'{test_case["name"]}',fontsize=15, fontweight="bold")
     ax1.legend(loc='right')
     ax1.grid(True, alpha=0.3)
 
     ax2 = axes[1,i]
     ax2.plot(ranks, errors, 'o-', linewidth=2, markersize=6, color=approx_color)
-    ax2.set_xlabel('Rank', fontsize=15)
+    ax2.set_xlabel(r'$\chi_{\max}$', fontsize=15,labelpad=-1)
     #ax2.set_title('Approximation Error vs Rank')
     ax2.grid(True, alpha=0.3)
     ax2.set_yscale('log')
 
     axins = inset_axes(ax2, width="50%", height="40%", loc='center right')
     
-    axins.plot(x, G, color=g_color, linewidth=1.3)
-    axins.plot(x, G, color=approx_color, linewidth=2, linestyle='dotted')
+    axins.plot(x, G, color=g_color, linewidth=2, label="True g")
+    axins.plot(x, G, color=f2_color, linewidth=2.5, linestyle='dotted', label=r"$TT_g$")
     axins.set_xlim(0, 1)  # Zoom in on x-axis if desired
+    axins.set_xticks([0,0.5,1])
     axins.set_ylim(0, G.max() * 1.1)  # Zoom in on y-axis to show g clearly
-    axins.set_title('Real g vs. \n Approximate g', fontsize=10)
+   #axins.set_yticks([0,G.max()/2,G.max()])
+    axins.set_title('True g vs. \n Approximation', fontsize=10)
     axins.grid(True, alpha=0.3)
     axins.tick_params(labelsize=8)
+    axins.legend(fontsize=6,loc="lower right")
+    #axins.ticklabel_format(axis="y", style="sci", scilimits=(0,0))
+    #axins.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
+    #axins.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1e'))
 
     # Arrow
     last_rank = ranks[-1]
@@ -99,10 +106,10 @@ for i, test_case in enumerate(test_cases):
             arrowprops=dict(arrowstyle='->', lw=1.5, color="#81A77D", alpha=0.7, linestyle='dashed'))
 
     if i == 0:
-        ax1.set_ylabel('Function Value', fontsize=15)
-        ax2.set_ylabel('Relative Error', fontsize=15)
+        ax1.set_ylabel('(a) Function Value', fontsize=13)
+        ax2.set_ylabel(r'(b) Relative Error $e_r$', fontsize=13)
 
 plt.subplots_adjust(hspace=0.3)
-
+#plt.gca().ticklabel_format(useMathText=True)
 plt.savefig('gaussian_multiplication.pdf', dpi=300)
 plt.savefig('gaussian_multiplication.svg', dpi=300)
