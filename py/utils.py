@@ -24,8 +24,8 @@ Function_Collection[6] = lambda x: np.sin(x * (2 ** B_const)) / (2 * np.sqrt(10)
 # 1D Gaussian functions
 w = 0.15
 w1,w2 = w,w
-x1 = 0.15
-x2 = 0.85
+x1 = 0.45
+x2 = 0.55
 Function_Collection[7] = lambda x: np.exp(-(x-x1)**2/w1**2)
 Function_Collection[8] = lambda x: np.exp(-(x-x2)**2/w2**2)
 
@@ -214,6 +214,7 @@ def scatter_plot_f1f2(x_tensor, g_tensor, f1_tensor = None, f2_tensor = None):
 
 # Generate quantics representation of a continuous function
 def quantics_generation(func, digit):
+    print("Generating quantics tensor...")
     shape = tuple([2] * digit)   # Tensor shape 2^n
     x_tensor = np.zeros(shape)   # Quantics x tensor
     f_tensor = np.zeros(shape)   # Quantics function 
@@ -224,13 +225,36 @@ def quantics_generation(func, digit):
         value = sum(x / (2 ** (i + 1)) for i, x in enumerate(indices))
         x_tensor[indices] = value
         f_tensor[indices] = func(value)
+    print("Quantics tensor generation completed.")
+
+    return x_tensor, f_tensor
+
+def quantics_generation_fast(func, digit):
+    print("Generating quantics tensor...")
     
+    # Create a meshgrid for all binary combinations
+    grids = np.meshgrid(*[np.array([0, 1])] * digit, indexing='ij')
+    
+    # Stack grids and compute values vectorized
+    indices_array = np.stack(grids, axis=-1)  # shape: (2,2,...,2,digit)
+    
+    # Vectorized calculation: x1/2 + x2/2^2 + ... + xn/2^n
+    powers = 2.0 ** np.arange(1, digit + 1)
+    x_tensor = np.sum(indices_array / powers, axis=-1)
+    
+    # Apply function (vectorized if possible, otherwise use np.vectorize)
+    try:
+        f_tensor = func(x_tensor)
+    except:
+        f_tensor = np.vectorize(func)(x_tensor)
+    
+    print("Quantics tensor generation completed.")
     return x_tensor, f_tensor
 
 # Construct a synthetic quantics tensor from given formula
 def load_quantics_tensor_formula(form_no, dim):
     func1 = Function_Collection[form_no]
-    x_tensor, f1_tensor = quantics_generation(func1, dim)
+    x_tensor, f1_tensor = quantics_generation_fast(func1, dim)
     
     return f1_tensor, x_tensor
 
