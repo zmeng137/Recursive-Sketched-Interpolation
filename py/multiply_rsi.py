@@ -11,11 +11,16 @@ from utils import adj_ttcore_contract
 from sketch import tt_sketching_cache
 
 # Compute the hadamard product of two tensor networks (in TT format)
-def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampling, seed):
-    assert len(TT_f1) == len(TT_f2), "Tensor dimensions of f1 and f2 do not match."
-    dim = len(TT_f1)   # Tensor dimension
+def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, sketch_dim, seed):
+    dim = len(TT_f1)     # Tensor dimension
+    TT_f1_physical_dims = [TT_f1[i].shape[1] for i in range(dim)]  # Physical mode size
+    TT_f2_physical_dims = [TT_f2[i].shape[1] for i in range(dim)]
+    assert TT_f1_physical_dims == TT_f2_physical_dims, "Physical dimenions of f1 and f2 do not match."
+
+    # Copy to prevent in-place modification of input TT
     TT_cores_f1 = [TT_f1[i].copy() for i in range(dim)]
     TT_cores_f2 = [TT_f2[i].copy() for i in range(dim)]
+    TT_physical_dims = TT_f1_physical_dims.copy()
     
     # Preparation: Before start ...
     start_time = tm.time()
@@ -37,20 +42,25 @@ def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampl
     # Randomized sketching cache
     start_time_sketch_cache = tm.time()
     sk_tail_number = dim - contract_core_number
-    f1_sk_tt = tt_sketching_cache(TT_cores_f1, sk_tail_number, over_sampling, seed)
-    f2_sk_tt = tt_sketching_cache(TT_cores_f2, sk_tail_number, over_sampling, seed)
+    f1_sk_tt = tt_sketching_cache(TT_cores_f1, sk_tail_number, sketch_dim, seed)
+    f2_sk_tt = tt_sketching_cache(TT_cores_f2, sk_tail_number, sketch_dim, seed)
     end_time_sketch_cache = tm.time()
     elapsed_time_skcache = end_time_sketch_cache - start_time_sketch_cache
 
     # Recursive Interpolative Sketching 
     while passed_core_number < dim-1:
-        # Check if we need to integrate the last cores
-        temp = dim - passed_core_number - contract_core_number
-        sketch_number = temp if temp > 0 else 0 
-        free_dim_f1 = TT_cores_f1[passed_core_number].shape[1]
-        free_dim_f2 = TT_cores_f2[passed_core_number].shape[1]
-        assert free_dim_f1 == free_dim_f2, f"Free dimension mismatch between f1 and f2 at core {passed_core_number}: {free_dim_f1} vs {free_dim_f2}"
-        free_dim = free_dim_f1
+        # Check if we need to sketch the last cores
+        physical_dim = TT_physical_dims[passed_core_number]
+        free_phydim_number = dim - passed_core_number - contract_core_number
+        residual_size = np.prod(TT_f1_physical_dims[-free_phydim_number:])
+        
+        # If we need to sketch or not in this iter
+        sketch_number = 0
+        if free_phydim_number > 0:
+            if sketch_dim < residual_size:
+                sketch_number = free_phydim_number  
+            else:
+                contract_core_number = dim - passed_core_number        
         print(f"# sketch: {sketch_number}, # contraction {contract_core_number}, # passed core {passed_core_number}.")
 
         ''' (i) Sketching and Contraction '''
@@ -67,9 +77,9 @@ def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampl
         # Randomized sketching of f1/f2's QTT
         start_sketching = tm.time()
         if sketch_number > 0:
-            skCore_f1 = np.zeros([f1_contract.shape[-1], over_sampling])
-            skCore_f2 = np.zeros([f2_contract.shape[-1], over_sampling])
-            for l in range(over_sampling):
+            skCore_f1 = np.zeros([f1_contract.shape[-1], sketch_dim])
+            skCore_f2 = np.zeros([f2_contract.shape[-1], sketch_dim])
+            for l in range(sketch_dim):
                 sk_f1 = f1_sk_tt[passed_core_number][:,l,:].copy()
                 sk_f2 = f2_sk_tt[passed_core_number][:,l,:].copy()
                 for i in range(passed_core_number + 1, sk_tail_number):
@@ -79,6 +89,7 @@ def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampl
                 skCore_f2[:, l] = np.squeeze(sk_f2, axis=-1)
             f1_contract = f1_contract @ skCore_f1
             f2_contract = f2_contract @ skCore_f2
+
         end_sketching = tm.time()
         elapsed_time_sketching += (end_sketching - start_sketching)
 
@@ -102,7 +113,7 @@ def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampl
         Z_core = Ztrans.T
         rank = r_subset.shape[0]  # r_i-1 = min(r_max, r_delta_i)
 
-        Z_core = tl.reshape(Z_core, [r_g, free_dim, rank])
+        Z_core = tl.reshape(Z_core, [r_g, physical_dim, rank])
         TT_Cores_g.append(Z_core)
         if passed_core_number == dim - 2:
             last_core = tl.reshape(r_subset, [rank, TT_cores_f1[-1].shape[1], 1])
@@ -123,8 +134,8 @@ def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampl
             I = np.empty([rank, passed_core_number+1])
             prev_I = interp_I_gBasis[passed_core_number]
             for j in range(rank):
-                p_I_idx = pr[j] // free_dim
-                c_i_idx = pr[j] % free_dim
+                p_I_idx = pr[j] // physical_dim
+                c_i_idx = pr[j] % physical_dim
                 I[j,0:passed_core_number] = prev_I[p_I_idx]
                 I[j,passed_core_number] = c_i_idx
             interp_I_gBasis[passed_core_number+1] = I
