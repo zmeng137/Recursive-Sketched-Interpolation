@@ -11,11 +11,14 @@ from utils import adj_ttcore_contract
 from sketch import tt_sketching_cache
 
 # Compute the hadamard product of two tensor networks (in TT format)
-def HadamardTT_RSI(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, over_sampling, seed):
+def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, over_sampling, seed):
+    assert len(TT_f1) == len(TT_f2), "Tensor dimensions of f1 and f2 do not match."
+    dim = len(TT_f1)   # Tensor dimension
+    TT_cores_f1 = [TT_f1[i].copy() for i in range(dim)]
+    TT_cores_f2 = [TT_f2[i].copy() for i in range(dim)]
+    
     # Preparation: Before start ...
     start_time = tm.time()
-    assert len(TT_cores_f1) == len(TT_cores_f2), "Tensor dimensions of f1 and f2 do not match."
-    dim = len(TT_cores_f1)   # Tensor dimension
     passed_core_number = 0   # Iteration number
     r_g = 1                  # Next TT-Rank of g 
     TT_Cores_g = []          # Interpolation Zj cores

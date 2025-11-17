@@ -4,27 +4,16 @@ import tensorly as tl
 from tensorly.tt_tensor import TTTensor
 from tensorly.random import random_tt
 from tensorly import tt_to_tensor
-from tt_rounding import tt_rounding
+from tt_rounding import TT_rounding
 
 # Direct O(Chi-4th) approach for Hadamard product of two tensor trains  
-def direct_product(tt1, tt2):
+def HadamardTT_direct(tt1, tt2):
+    assert len(tt1) == len(tt2), "Tensor dimensions of f1 and f2 do not match."
+    d = len(tt1)   # Tensor dimension
+    factors1 = [tt1[i].copy() for i in range(d)]
+    factors2 = [tt2[i].copy() for i in range(d)]
+    
     start_t = tm.time()
-
-    # Extract factors if TTTensor objects
-    if isinstance(tt1, TTTensor):
-        factors1 = tt1.factors
-    else:
-        factors1 = tt1
-        
-    if isinstance(tt2, TTTensor):
-        factors2 = tt2.factors
-    else:
-        factors2 = tt2
-    
-    if len(factors1) != len(factors2):
-        raise ValueError("Both tensor trains must have the same number of cores")
-    
-    d = len(factors1)  # number of cores
     tt_product_factors = []
     
     for k in range(d):
@@ -39,22 +28,13 @@ def direct_product(tt1, tt2):
             raise ValueError(f"Physical dimensions must match at core {k}")
         
         # The Hadamard product operation for TT cores using copy tensor:
-        # 
-        # For element-wise product, we need:
-        # (TT1 ⊙ TT2)[i1, i2, ..., id] = TT1[i1, i2, ..., id] * TT2[i1, i2, ..., id]
-        #
-        # The copy tensor approach: Result_k[(α1, α2), i_k, (β1, β2)] 
-        #                                    = Core1_k[α1, i_k, β1] * Core2_k[α2, i_k, β2]
-        #
-        # core1: (r1_prev, n_k, r1_next)
-        # core2: (r2_prev, n_k, r2_next)
+        # Result_k[(α1, α2), i_k, (β1, β2)] = Core1_k[α1, i_k, β1] * Core2_k[α2, i_k, β2]
         
         # Using einsum: multiply cores with matching physical index i
         product_core = np.einsum('aib,cid->acibd', core1, core2)
         
         # Result shape: (r1_prev, r2_prev, n_k, r1_next, r2_next)
-        # Need to reshape to: (r1_prev*r2_prev, n_k, r1_next*r2_next)
-        # The multi-index (α1, α2) should be in C-order: α2 + r2_prev * α1
+        # Reshape to: (r1_prev*r2_prev, n_k, r1_next*r2_next)
         
         new_r_prev = r1_prev * r2_prev
         new_r_next = r1_next * r2_next
@@ -67,11 +47,11 @@ def direct_product(tt1, tt2):
         product_core = product_core.transpose(0, 2, 1)
         
         tt_product_factors.append(product_core)
-
-        end_t = tm.time()
-        
+    
+    end_t = tm.time()
     print(f"Runtime of the direct product algorithm: {(end_t - start_t) * 1000:.2f} ms.")
-    return TTTensor(tt_product_factors)
+    
+    return tt_product_factors
 
 '''
 # Example usage
@@ -80,9 +60,9 @@ if __name__ == "__main__":
     print("=" * 50)
     
     # Generate two random tensor trains with the same shape
-    shape = [20, 20, 20, 20, 20]
-    ttrank_tt1 = [1, 20, 100, 100, 20, 1]
-    ttrank_tt2 = [1, 20, 100, 100, 20, 1]
+    shape = [10, 10, 10, 10, 10]
+    ttrank_tt1 = [1, 10, 10, 10, 10, 1]
+    ttrank_tt2 = [1, 10, 10, 10, 10, 1]
 
     # Generate random TT tensors
     tt1 = random_tt(shape=shape, rank=ttrank_tt1, full=False)
@@ -93,10 +73,10 @@ if __name__ == "__main__":
     print(f"TT2 core shapes: {[core.shape for core in tt2.factors]}")
     
     # Compute Hadamard product in TT format
-    tt_product = tt_hadamard_product(tt1, tt2)
-    tt_product_trunc = tt_rounding(tt_product, 1e-16, 10)
+    tt_product = HadamardTT_direct(tt1, tt2)
+    tt_product_trunc = TT_rounding(tt_product, 1e-16, 20)
     
-    print(f"\nHadamard product TT core shapes: {[core.shape for core in tt_product.factors]}")
+    print(f"\nHadamard product TT core shapes: {[core.shape for core in tt_product]}")
     
     # Verify correctness by reconstructing full tensors
     tensor1 = tt_to_tensor(tt1)
