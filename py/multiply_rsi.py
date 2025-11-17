@@ -11,7 +11,7 @@ from utils import adj_ttcore_contract
 from sketch import tt_sketching_cache
 
 # Compute the hadamard product of two tensor networks (in TT format)
-def multiply_tt(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, over_sampling, seed):
+def HadamardTT_RSI(TT_cores_f1, TT_cores_f2, contract_core_number, max_rank, eps, over_sampling, seed):
     # Preparation: Before start ...
     start_time = tm.time()
     assert len(TT_cores_f1) == len(TT_cores_f2), "Tensor dimensions of f1 and f2 do not match."

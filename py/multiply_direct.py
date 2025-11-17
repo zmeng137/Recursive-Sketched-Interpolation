@@ -4,9 +4,10 @@ import tensorly as tl
 from tensorly.tt_tensor import TTTensor
 from tensorly.random import random_tt
 from tensorly import tt_to_tensor
+from tt_rounding import tt_rounding
 
-
-def tt_hadamard_product(tt1, tt2):
+# Direct O(Chi-4th) approach for Hadamard product of two tensor trains  
+def direct_product(tt1, tt2):
     start_t = tm.time()
 
     # Extract factors if TTTensor objects
@@ -69,24 +70,23 @@ def tt_hadamard_product(tt1, tt2):
 
         end_t = tm.time()
         
-    print(f"Runtime of the entire algorithm: {(end_t - start_t) * 1000:.2f} ms.")
-
+    print(f"Runtime of the direct product algorithm: {(end_t - start_t) * 1000:.2f} ms.")
     return TTTensor(tt_product_factors)
 
-
+'''
 # Example usage
 if __name__ == "__main__":
     print("Example: Hadamard product of two tensor trains")
     print("=" * 50)
     
     # Generate two random tensor trains with the same shape
-    shape = [7, 9, 4, 5, 6, 10, 5, 3, 11, 5]
-    rank1 = [1, 4, 15, 101, 80, 30, 110, 25, 18, 3, 1]
-    rank2 = [1, 3, 29, 100, 107, 230, 19, 301, 29, 2, 1]
-    
+    shape = [20, 20, 20, 20, 20]
+    ttrank_tt1 = [1, 20, 100, 100, 20, 1]
+    ttrank_tt2 = [1, 20, 100, 100, 20, 1]
+
     # Generate random TT tensors
-    tt1 = random_tt(shape=shape, rank=rank1, full=False)
-    tt2 = random_tt(shape=shape, rank=rank2, full=False)
+    tt1 = random_tt(shape=shape, rank=ttrank_tt1, full=False)
+    tt2 = random_tt(shape=shape, rank=ttrank_tt2, full=False)
     
     print(f"Tensor shape: {shape}")
     print(f"\nTT1 core shapes: {[core.shape for core in tt1.factors]}")
@@ -94,6 +94,7 @@ if __name__ == "__main__":
     
     # Compute Hadamard product in TT format
     tt_product = tt_hadamard_product(tt1, tt2)
+    tt_product_trunc = tt_rounding(tt_product, 1e-16, 10)
     
     print(f"\nHadamard product TT core shapes: {[core.shape for core in tt_product.factors]}")
     
@@ -101,23 +102,29 @@ if __name__ == "__main__":
     tensor1 = tt_to_tensor(tt1)
     tensor2 = tt_to_tensor(tt2)
     tensor_product = tt_to_tensor(tt_product)
+    tensor_product_trunc = tt_to_tensor(tt_product_trunc)
     
     # Expected result: element-wise product
     expected_product = tensor1 * tensor2
     
     # Calculate error
     error = np.linalg.norm(tensor_product - expected_product) / np.linalg.norm(expected_product)
+    error_trunc = np.linalg.norm(tensor_product_trunc - expected_product) / np.linalg.norm(expected_product)
     
     print(f"\nRelative error: {error:.2e}")
+    print(f"Compressed relative error: {error_trunc:.2e}")
     print(f"Success: {error < 1e-10}")
     
     # Show rank growth
     r1_ranks = [tt1.factors[k].shape[2] for k in range(len(tt1.factors)-1)]
     r2_ranks = [tt2.factors[k].shape[2] for k in range(len(tt2.factors)-1)]
-    product_ranks = [tt_product.factors[k].shape[2] for k in range(len(tt_product.factors)-1)]
-    
+    product_ranks = [tt_product[k].shape[2] for k in range(len(tt_product)-1)]
+    compressed_ranks = [tt_product_trunc[k].shape[2] for k in range(len(tt_product_trunc)-1)]
+
     print(f"\nRank growth (internal ranks):")
     print(f"  TT1 ranks: {r1_ranks}")
     print(f"  TT2 ranks: {r2_ranks}")
     print(f"  Product ranks: {product_ranks}")
+    print(f"  Compressed Product ranks: {compressed_ranks}")
     print(f"  Expected (r1*r2): {[r1_ranks[i]*r2_ranks[i] for i in range(len(r1_ranks))]}")
+'''
