@@ -35,7 +35,7 @@ def load_mps(filename):
     return mps_tensors
 
 print("Load TT_f1 ...")
-TT_f1 = load_mps(file3)
+TT_f1 = load_mps(file1)
 print("\nLoad TT_f2 ...")
 TT_f2 = load_mps(file2)
 
@@ -46,7 +46,7 @@ print(f"TT_f2 Bond dimension {TT_f2_rank}, max {max(TT_f2_rank)}")
 
 print("\n Hadamard product of f1 and f2 ...")
 r_g_max = 50
-eps = 1e-10
+eps = 1e-8
 sketch_dim = 50
 TT_g1, TT_g1_rank, _ = HadamardTT_RSI(TT_f1, TT_f2, 2, r_g_max, eps, sketch_dim, 0)
 print(f"\nTT_g1 Bond dimension {TT_g1_rank}, max {max(TT_g1_rank)}")
