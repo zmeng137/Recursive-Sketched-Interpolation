@@ -73,20 +73,20 @@ for i, test_case in enumerate(test_cases):
 
     ax2 = axes[1,i]
     ax2.plot(ranks, errors, 'o-', linewidth=2, markersize=6, color=approx_color)
-    ax2.set_xlabel(r'$\chi_{\max}$', fontsize=15,labelpad=-1)
+    ax2.set_xlabel(r'$\chi_{\max}(g^{\text{RSI}})$', fontsize=15,labelpad=1)
     #ax2.set_title('Approximation Error vs Rank')
     ax2.grid(True, alpha=0.3)
     ax2.set_yscale('log')
 
     axins = inset_axes(ax2, width="50%", height="40%", loc='center right')
     
-    axins.plot(x, G, color=g_color, linewidth=2, label="True g")
-    axins.plot(x, G, color=f2_color, linewidth=2.5, linestyle='dotted', label=r"$TT_g$")
+    axins.plot(x, G, color=g_color, linewidth=2, label=r"True $g$")
+    axins.plot(x, G, color=f2_color, linewidth=2.5, linestyle='dotted', label=r"$g^{\text{RSI}}$")
     axins.set_xlim(0, 1)  # Zoom in on x-axis if desired
     axins.set_xticks([0,0.5,1])
     axins.set_ylim(0, G.max() * 1.1)  # Zoom in on y-axis to show g clearly
    #axins.set_yticks([0,G.max()/2,G.max()])
-    axins.set_title('True g vs. \n Approximation', fontsize=10)
+    axins.set_title(r'True $g$ vs. $g^{\text{RSI}}$', fontsize=11)
     axins.grid(True, alpha=0.3)
     axins.tick_params(labelsize=8)
     axins.legend(fontsize=6,loc="lower right")
@@ -107,7 +107,7 @@ for i, test_case in enumerate(test_cases):
 
     if i == 0:
         ax1.set_ylabel('(a) Function Value', fontsize=13)
-        ax2.set_ylabel(r'(b) Relative Error $e_r$', fontsize=13)
+        ax2.set_ylabel(r'(b) Relative Error $\epsilon_r$', fontsize=13)
 
 plt.subplots_adjust(hspace=0.3)
 #plt.gca().ticklabel_format(useMathText=True)

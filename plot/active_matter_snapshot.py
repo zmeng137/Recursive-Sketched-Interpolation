@@ -43,8 +43,9 @@ for field_index in range(plot_field_no):
     function_2d = input_fields[time_step, :, :, field_index]
     im1 = axes[field_index].imshow(function_2d, cmap='viridis', aspect='auto',extent=[x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()])
     axes[field_index].set_title(field_name[field_index])
-    axes[field_index].set_xticks([0,10])
-    axes[field_index].set_yticks([0,10])
+    axes[field_index].set_xticks([0,10], labelsize=10)
+    axes[field_index].set_yticks([0,10], labelsize=10)
+    
     
 
 plt.tight_layout()
