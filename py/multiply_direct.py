@@ -53,6 +53,7 @@ def HadamardTT_direct(tt1, tt2):
     
     return tt_product_factors
 
+# Direct O(Chi-4th) approach for Hadamard product of more than two tensor trains
 def HadamardTT_direct_fs(tt_dict):
     """
     Compute Hadamard product of multiple tensor trains.
@@ -135,59 +136,3 @@ def HadamardTT_direct_fs(tt_dict):
     print(f"Number of tensor trains multiplied: {len(tt_list)}")
     
     return tt_product_factors
-
-'''
-# Example usage
-if __name__ == "__main__":
-    print("Example: Hadamard product of two tensor trains")
-    print("=" * 50)
-    
-    # Generate two random tensor trains with the same shape
-    shape = [10, 10, 10, 10, 10]
-    ttrank_tt1 = [1, 10, 10, 10, 10, 1]
-    ttrank_tt2 = [1, 10, 10, 10, 10, 1]
-
-    # Generate random TT tensors
-    tt1 = random_tt(shape=shape, rank=ttrank_tt1, full=False)
-    tt2 = random_tt(shape=shape, rank=ttrank_tt2, full=False)
-    
-    print(f"Tensor shape: {shape}")
-    print(f"\nTT1 core shapes: {[core.shape for core in tt1.factors]}")
-    print(f"TT2 core shapes: {[core.shape for core in tt2.factors]}")
-    
-    # Compute Hadamard product in TT format
-    tt_product = HadamardTT_direct(tt1, tt2)
-    tt_product_trunc = TT_rounding(tt_product, 1e-16, 20)
-    
-    print(f"\nHadamard product TT core shapes: {[core.shape for core in tt_product]}")
-    
-    # Verify correctness by reconstructing full tensors
-    tensor1 = tt_to_tensor(tt1)
-    tensor2 = tt_to_tensor(tt2)
-    tensor_product = tt_to_tensor(tt_product)
-    tensor_product_trunc = tt_to_tensor(tt_product_trunc)
-    
-    # Expected result: element-wise product
-    expected_product = tensor1 * tensor2
-    
-    # Calculate error
-    error = np.linalg.norm(tensor_product - expected_product) / np.linalg.norm(expected_product)
-    error_trunc = np.linalg.norm(tensor_product_trunc - expected_product) / np.linalg.norm(expected_product)
-    
-    print(f"\nRelative error: {error:.2e}")
-    print(f"Compressed relative error: {error_trunc:.2e}")
-    print(f"Success: {error < 1e-10}")
-    
-    # Show rank growth
-    r1_ranks = [tt1.factors[k].shape[2] for k in range(len(tt1.factors)-1)]
-    r2_ranks = [tt2.factors[k].shape[2] for k in range(len(tt2.factors)-1)]
-    product_ranks = [tt_product[k].shape[2] for k in range(len(tt_product)-1)]
-    compressed_ranks = [tt_product_trunc[k].shape[2] for k in range(len(tt_product_trunc)-1)]
-
-    print(f"\nRank growth (internal ranks):")
-    print(f"  TT1 ranks: {r1_ranks}")
-    print(f"  TT2 ranks: {r2_ranks}")
-    print(f"  Product ranks: {product_ranks}")
-    print(f"  Compressed Product ranks: {compressed_ranks}")
-    print(f"  Expected (r1*r2): {[r1_ranks[i]*r2_ranks[i] for i in range(len(r1_ranks))]}")
-'''

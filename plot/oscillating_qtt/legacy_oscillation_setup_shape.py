@@ -2,8 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
-f1 = lambda x, B_const: np.cos(x * (2 ** B_const)) * np.cos(x * (2 ** B_const) / (4 * np.sqrt(5))) * np.exp(- x * x) + 2 * np.exp(-x)
-f2 = lambda x, B_const: np.sin(x * (2.1 ** B_const)) / (2 * np.sqrt(10)) * (np.exp(- x * x * x) + 5 * x * x) - 4 * np.exp(-np.sqrt(x)) + 2.1*x**3
+f1 = lambda x, B_const: np.cos(x * (2 ** B_const)) * np.exp(- x * x) + 4 * np.exp(x) - 3 * x * x + 10 * x + 1
+f2 = lambda x, B_const: np.sin(x * (2 ** B_const)) * (np.exp(x * x) + 5 * x + 2) - 4*x
+
 
 B_list = [5, 10, 15, 20]
 
@@ -64,7 +65,7 @@ g = y1 * y2
 ax = axes[0]
 ax.plot(x, y1, label=r"$f_1$", color=f1_color, alpha=0.8)
 ax.plot(x, y2, label=r"$f_2$", color=f2_color, alpha=0.8)
-ax.plot(x, g, label=r"$g=f_1 \cdot f_2$", color=g_color, alpha=0.8)
+#ax.plot(x, g, label=r"$g=f_1 \cdot f_2$", color=g_color, alpha=0.8)
 ax.set_xlabel('x', fontsize=16)
 ax.set_ylabel('y', fontsize=16)
 ax.set_title(f'B = {B}', fontsize=15)
@@ -79,7 +80,7 @@ ax.annotate(get_annotation_text(0), xy=(0.5, 0.35), xycoords='axes fraction',
             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='none'))
 
 # Plot B=10, 15, 20 (split axes)
-for b_idx, B in enumerate([10, 15, 20]):
+for b_idx, B in enumerate(B_list[1:]):
     y_min, y_max = float('inf'), float('-inf')
     
     for p_idx, (x_start, x_end) in enumerate(x_ranges[b_idx]):
@@ -101,7 +102,7 @@ for b_idx, B in enumerate([10, 15, 20]):
         
         ax.plot(x, y1, label=r"$f_1$", color=f1_color, alpha=0.8)
         ax.plot(x, y2, label=r"$f_2$", color=f2_color, alpha=1)
-        ax.plot(x, g, label=r"$g=f_1 \cdot f_2$", color=g_color, alpha=0.5)
+        #ax.plot(x, g, label=r"$g=f_1 \cdot f_2$", color=g_color, alpha=0.5)
 
         ax.set_ylim(y_min, y_max)
         ax.grid(True, alpha=0.3)

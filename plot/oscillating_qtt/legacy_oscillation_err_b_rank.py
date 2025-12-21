@@ -1,43 +1,46 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-B = [5, 10, 15, 20]
+B = [10, 20]
 
 target_maxrank = {}
-target_maxrank['B=5'] = [5,10,15,20]
+#target_maxrank['B=5'] = [5,10,15,20]
 target_maxrank['B=10'] = [10,15,20,25,30] 
-target_maxrank['B=15'] = [15,20,25,30,35,40]
+#target_maxrank['B=15'] = [15,20,25,30,35,40]
 target_maxrank['B=20'] = [20,25,30,35,40,45,50]
 
 err_rsi = {}
 time_rsi = {}
 
-err_rsi['B=5'] = [4.35e-2, 2.16e-3, 4.64e-5, 3.99e-7]
+#err_rsi['B=5'] = [4.35e-2, 2.16e-3, 4.64e-5, 3.99e-7]
 err_rsi['B=10'] = [1.99e-1, 8.83e-2, 4.26e-3, 1.04e-3, 2.98e-4]
-err_rsi['B=15'] = [2.99e-1, 1.74e-2, 1.93e-3, 7.19e-4, 2.51e-4, 9.44e-5]
+#err_rsi['B=15'] = [2.99e-1, 1.74e-2, 1.93e-3, 7.19e-4, 2.51e-4, 9.44e-5]
 err_rsi['B=20'] = [6.55e-2, 4.34e-3, 3.41e-3, 4.17e-4, 1.62e-4, 8.88e-5, 6.14e-6] 
 
 # Sketch_dim = r_max
-time_rsi['B=5'] = [18.16, 28.47, 37.22, 43.53]
+#time_rsi['B=5'] = [18.16, 28.47, 37.22, 43.53]
 time_rsi['B=10'] = [36.98, 52.56, 66.33, 83.55, 98.62]
-time_rsi['B=15'] = [60.80, 88.17, 95.76, 114.39, 134.20, ]
+#time_rsi['B=15'] = [60.80, 88.17, 95.76, 114.39, 134.20, ]
 time_rsi['B=20'] = [89.46, 108.78, 130.34, 188.80, 174.45, 198.47, 250.22]
 
 err_direct = {}
 time_direct = {}
 
-err_direct['B=5'] = [2.16e-3, 3.01e-9, 5.36e-11, 5.36e-11]
+#err_direct['B=5'] = [2.16e-3, 3.01e-9, 5.36e-11, 5.36e-11]
 err_direct['B=10'] = [2.38e-2, 7.14e-3, 1.64e-4, 3.09e-5, 7.35e-7]
-err_direct['B=15'] = [3.33e-3, 2.18e-4, 4.68e-5, 7.68e-6, 1.76e-7, 9.51e-8]
+#err_direct['B=15'] = [3.33e-3, 2.18e-4, 4.68e-5, 7.68e-6, 1.76e-7, 9.51e-8]
 err_direct['B=20'] = [6.10e-4, 8.27e-5, 3.02e-5, 4.24e-7, 3.24e-7, 7.11e-8, 2.86e-9] 
 
-time_direct['B=5'] = [36.85, 38.98, 39.54, 43.88]
+#time_direct['B=5'] = [36.85, 38.98, 39.54, 43.88]
 time_direct['B=10'] = [414.95, 413.01, 427.02, 451.68, 462.37]
-time_direct['B=15'] = [1621.63, 1586.88, 1659.44, 1673.82, 1688.90, 1724.04]
+#time_direct['B=15'] = [1621.63, 1586.88, 1659.44, 1673.82, 1688.90, 1724.04]
 time_direct['B=20'] = [5573.62, 5421.36, 5844.70, 6311.23, 5741.52, 5647.26, 6432.21]
 
-colors = ["#DFA06E", "#84D394", "#94C4E4", "#DF5F68"]
-markers = ['o', 's', '^', 'd']
+#colors = ["#DFA06E", "#84D394", "#94C4E4", "#DF5F68"]
+#markers = ['o', 's', '^', 'd']
+
+colors = ["#94C4E4", "#DF5F68"]
+markers = ['o', 's']
 
 # Figure 1: Error comparison
 plt.figure(figsize=(7.5, 4.5))
@@ -70,6 +73,9 @@ plt.yticks(fontsize=18)
 plt.tight_layout()
 plt.savefig('error_comparison_rsi_direct.pdf', format='pdf', dpi=300, bbox_inches='tight')
 print("Saved: error_comparison_rsi_direct.pdf")
+
+
+'''
 
 # Figure 2: Runtime comparison (bar chart with lines) - LOG SCALE
 plt.figure(figsize=(7.5, 4.5))
@@ -117,4 +123,4 @@ plt.tight_layout()
 plt.savefig('runtime_comparison_rsi_direct.pdf', format='pdf', dpi=300, bbox_inches='tight')
 print("Saved: runtime_comparison_rsi_direct.pdf")
 
-plt.show()
+'''

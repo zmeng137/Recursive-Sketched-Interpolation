@@ -52,7 +52,7 @@ def HadamardTT_RSI(TT_f1, TT_f2, contract_core_number, max_rank, eps, sketch_dim
         # Check if we need to sketch the last cores
         physical_dim = TT_physical_dims[passed_core_number]
         free_phydim_number = dim - passed_core_number - contract_core_number
-        residual_size = np.prod(TT_physical_dims[-free_phydim_number:])
+        residual_size = ma.prod(TT_physical_dims[-free_phydim_number:])
         
         # If we need to sketch or not in this iter
         sketch_number = 0
