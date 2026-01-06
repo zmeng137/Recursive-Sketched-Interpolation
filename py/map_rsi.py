@@ -11,7 +11,7 @@ from utils import adj_ttcore_contract
 from sketch import tt_sketching_cache
 
 # Compute the g(f(x)) where f(x) is a TT-approximated function
-def functional_tt(g_func, TTcores_f, contract_core_number, max_rank, eps, over_sampling, seed):
+def NonlinearMapTT_RSI(g_func, TTcores_f, contract_core_number, max_rank, eps, over_sampling, seed):
     # Preparation: Before start ...
     start_time = tm.time()
     dim = len(TTcores_f)    # Tensor dimension
