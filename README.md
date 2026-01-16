@@ -1,2 +1,6 @@
-# Tensor Network Functional 
-Efficient Products and Functions of Tensor Networks
+Recursive Sketched Interpolation
+======
+Efficient Hadamard Products of Tensor Trains
+--------
+
+...
