@@ -234,6 +234,19 @@ def HadamardTT_RSI_fs(TTset, contract_core_number, max_rank, eps, sketch_dim, se
 
     # Recursive Interpolative Sketching 
     while passed_core_number < dim-1:
+
+        '''
+        # Randomized sketching cache
+        start_time_sketch_cache = tm.time()
+        sk_tail_number = dim - contract_core_number
+        SkTT_f = {}
+        for i in range(number_of_TTs):
+            SkTT_f[i] = tt_sketching_cache(TT_cores_f[i], sk_tail_number, sketch_dim, seed)
+        end_time_sketch_cache = tm.time()
+        elapsed_time_skcache = end_time_sketch_cache - start_time_sketch_cache
+        '''
+
+
         # Check if we need to sketch the last cores
         physical_dim = TT_physical_dims[passed_core_number]
         free_phydim_number = dim - passed_core_number - contract_core_number
