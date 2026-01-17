@@ -3,7 +3,6 @@ import sys
 import h5py
 import numpy as np
 import tensorly as tl
-import time as tm
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'py'))
 
@@ -78,30 +77,41 @@ def readh5_mps(filePath):
     mps_rank = [mps[0].shape[0]] + [mps[k].shape[2] for k in range(len(mps)-1)] + [mps[-1].shape[2]]
     print(f"\nMPS rank: {mps_rank}\n")
 
-    return mps, energy, energy_diag
+    return mps, num_sites, energy, energy_diag
 
-filePath = "/home/zmeng5/QTTM/datasets/quantum_dmrg/psi_maxdim20_n50.h5"
-mps, energy, energy_diag = readh5_mps(filePath)
+# Load MPS from file
+filePath = "/home/zmeng5/QTTM/datasets/itensor_dmrg_mps/n15_system/psi_maxdim10_n15.h5"
+mps, num_sites, energy, energy_diag = readh5_mps(filePath)
 
 print("\n == Evaluation of True func == \n")
 
-Zdeviation_dict_rsi = {}
-Zdeviation_dict_dir = {}
+# Measurement: Norm bias: |1-norm|
+Normbias_dict_rsi = {}
+Normbias_dict_dir = {}
+
+# Measurement: Diagonal energy deviation: |E_true - E_approx|
 Energydiag_dict_rsi = {}
 Energydiag_dict_dir = {}
 
-#r_max = [10,50,100] # psi-maxdim10
-r_max = [50,100,150] # psi-maxdim20
-#r_max = [50,150,250] # psi-maxdim50
-#r_max = [100,200,300] # psi-maxdim100
+# Measurement: Relative error
+rel_error_dict_rsi = {}
+rel_error_dict_dir = {}
 
+fulleval_thres = 20
+if num_sites <= fulleval_thres:
+    full_tensor = tl.tt_to_tensor(mps)
+    full_tensor_diag = full_tensor * full_tensor
+
+r_max = [50,100,150] 
 contract_number = [2] 
+oversampling = 10
+
+print("\n ====== RSI ====== \n")
 for co in contract_number:
     for rm in r_max:
-        print("\n == RSI == \n")
         seed = 1
         eps=0
-        skdim = int(rm/2)
+        skdim = int(rm/2) + oversampling
         TTg_rsi, TTRank_rsi, _  = HadamardTT_RSI(mps, mps, co, rm, eps, skdim, seed)
         
         print("\n == Evaluation of Approx == \n")
@@ -109,45 +119,51 @@ for co in contract_number:
         energydiag_rsi = mps_diagonal(TTg_rsi)
 
         Energydiag_dict_rsi[f"cont_no={co}; rmax={rm}; skdim={skdim}"] = np.abs(energy_diag - energydiag_rsi)
-        Zdeviation_dict_rsi[f"cont_no={co}; rmax={rm}; skdim={skdim}"] = np.abs(1 - norm_rsi)
+        Normbias_dict_rsi[f"cont_no={co}; rmax={rm}; skdim={skdim}"] = np.abs(1 - norm_rsi)
+        if num_sites <= fulleval_thres:
+            g_rsi = tl.tt_to_tensor(TTg_rsi)
+            rel_error = np.linalg.norm(full_tensor_diag - g_rsi) / np.linalg.norm(full_tensor_diag)
+            rel_error_dict_rsi[f"cont_no={co}; rmax={rm}; skdim={skdim}"] = rel_error
 
 # Output errors
-print("\n === RSI Method Diag Energy deviation ===\n")
+print("\n === RSI Method Diag Energy deviation ===")
 for key, value in Energydiag_dict_rsi.items():
     print(f"{key}: {value}")
 print("\n =========================\n")
 
-#print("\n === RSI Method Z deviation ===\n")
-#for key, value in Zdeviation_dict_rsi.items():
-#    print(f"{key}: {value}")
-#print("\n =========================\n")
-
+print("\n === RSI Method Relative Error ===")
+for key, value in rel_error_dict_rsi.items():
+    print(f"{key}: {value}")
+print("\n =========================\n")
 
 # Direct method
 # direct kronecker
-print("\n == direct == \n")
+print("\n ====== Direct method (Kronecker product) ====== \n")
 TTg_direct = HadamardTT_direct(mps, mps)
 TTrank_direct = [TTg_direct[0].shape[0]] + [TTg_direct[k].shape[2] for k in range(len(TTg_direct)-1)] + [TTg_direct[-1].shape[2]]
 
 # Rounding recompression
+print("\n == Direct method (TT-rounding) == \n")
 for rm in r_max:
-    print("\n == TT rounding == \n")
     TTg_direct_trunc = TT_rounding(TTg_direct, 0, rm)   # Post re-compression
     TTrank_direct_trunc = [TTg_direct_trunc[0].shape[0]] + [TTg_direct_trunc[k].shape[2] for k in range(len(TTg_direct_trunc)-1)] + [TTg_direct_trunc[-1].shape[2]]
 
     print("\n == Evaluation of Approx == \n")
     norm_dir = mps_norm(TTg_direct_trunc) 
     energydiag_dir = mps_diagonal(TTg_direct_trunc)  
-    Zdeviation_dict_dir[f"direct rounding rmax={rm}"] = np.abs(1 - norm_dir)
+    Normbias_dict_dir[f"direct rounding rmax={rm}"] = np.abs(1 - norm_dir)
     Energydiag_dict_dir[f"direct rounding rmax={rm}"] = np.abs(energy_diag - energydiag_dir)
+    if num_sites <= fulleval_thres:
+        g_direct = tl.tt_to_tensor(TTg_direct_trunc)
+        rel_error_dir = np.linalg.norm(full_tensor_diag - g_direct) / np.linalg.norm(full_tensor_diag)
+        rel_error_dict_dir[f"direct rounding rmax={rm}"] = rel_error_dir
 
 print("\n === DIR Method Diag Energy deviation ===\n")
 for key, value in Energydiag_dict_dir.items():
     print(f"{key}: {value}")
 print("\n =========================\n")
 
-
-#print("\n === DIR Method Z deviation ===\n")
-#for key, value in Zdeviation_dict_dir.items():
-#    print(f"{key}: {value}")
-#print("\n =========================\n")
+print("\n === DIR Method Relative Error ===\n")
+for key, value in rel_error_dict_dir.items():
+    print(f"{key}: {value}")
+print("\n =========================\n")
