@@ -52,7 +52,7 @@ test_cases = [
 ]
 
 # Create figure with custom layout
-fig = plt.figure(figsize=(16, 5))
+fig = plt.figure(figsize=(16, 6))
 gs = fig.add_gridspec(2, 6, height_ratios=[0.6, 1], hspace=0.5, wspace=0.5)
 
 # First row: Error convergence plots
@@ -95,6 +95,7 @@ width = 0.15
 
 rsi_runtimes = [case['rsi_runtime'] if case['rsi_runtime'] > 0 else np.nan for case in test_cases]
 dir_runtimes = [case['dir_runtime'] if case['dir_runtime'] > 0 else np.nan for case in test_cases]
+chi_values = [20, 40, 60, 80, 100]
 
 bars1 = ax_runtime.bar(x - width/2, rsi_runtimes, width, label='RSI', 
                        color=color_rsi, alpha=0.8, edgecolor='black', linewidth=1)
@@ -102,18 +103,34 @@ bars2 = ax_runtime.bar(x + width/2, dir_runtimes, width, label='Direct',
                        color=color_dir, alpha=0.8, edgecolor='black', linewidth=1)
 
 # Add line plots connecting the bar data points
-ax_runtime.plot(x - width/2, rsi_runtimes, '--', color=color_rsi, 
-               linewidth=2, markersize=6, alpha=0.7, zorder=3)
-ax_runtime.plot(x + width/2, dir_runtimes, '--', color=color_dir, 
-               linewidth=2, markersize=6, alpha=0.7, zorder=3)
+#ax_runtime.plot(x - width/2, rsi_runtimes, '--', color=color_rsi, 
+#               linewidth=2, markersize=6, alpha=0.7, zorder=3)
+#ax_runtime.plot(x + width/2, dir_runtimes, '--', color=color_dir, 
+#               linewidth=2, markersize=6, alpha=0.7, zorder=3)
 
-ax_runtime.set_xlabel(r'Input $\chi_{\max}(|\psi|)$', fontsize=13)
+# Add reference lines for chi^3 and chi^4 scaling
+chi_range = np.linspace(chi_values[0], chi_values[-1], 100)
+x_range = np.linspace(x[0], x[-1], 100)
+
+# Scale reference lines to align with the data
+scale_chi3 = rsi_runtimes[0] / (chi_values[0]**3)
+scale_chi4 = dir_runtimes[0] / (chi_values[0]**4)
+
+chi3_line = (scale_chi3-0.15) * (chi_range ** 3)
+chi4_line = scale_chi4 * (chi_range ** 4)
+
+ax_runtime.plot(x_range, chi3_line, ':', color=color_rsi, linewidth=2.5, 
+               label=r'$\propto \chi^3$', alpha=0.7, zorder=2)
+ax_runtime.plot(x_range, chi4_line, ':', color=color_dir, linewidth=2.5, 
+               label=r'$\propto \chi^4$', alpha=0.7, zorder=2)
+
+ax_runtime.set_xlabel(r'Input $\chi_{\max}(\psi)$', fontsize=13)
 ax_runtime.set_ylabel('(b) Runtime (ms)', fontsize=12)
 ax_runtime.set_yscale('log')
 ax_runtime.set_ylim([1e2, 1e7])
 ax_runtime.set_xticks(x)
 ax_runtime.set_xticklabels(['20', '40', '60', '80', '100'], fontsize=13)
-ax_runtime.legend(fontsize=11, framealpha=0.9)
+ax_runtime.legend(fontsize=11, framealpha=0.9, loc='upper left')
 ax_runtime.grid(True, alpha=0.3, axis='y', linestyle='--', which='both')
 
 # Add value labels on bars
@@ -139,20 +156,18 @@ autolabel(bars2, ax_runtime)
 ax_speedup = fig.add_subplot(gs[1, 3:5])
 
 # Calculate speedup
-chi_values = [20, 40, 60, 80, 100]
 speedup = [dir_runtimes[i] / rsi_runtimes[i] for i in range(len(test_cases))]
 
 # Plot speedup
 ax_speedup.plot(chi_values, speedup, 'o-', color='green', linewidth=2.5, 
                markersize=10, markeredgewidth=1.5, markeredgecolor='white', label='Speedup')
 
-ax_speedup.set_xlabel(r'Input $\chi_{\max}(|\psi|)$', fontsize=13)
+ax_speedup.set_xlabel(r'Input $\chi_{\max}(\psi)$', fontsize=13)
 ax_speedup.set_ylabel('(c) Speedup of RSI', fontsize=12)
 ax_speedup.set_ylim([1, 90])
 ax_speedup.set_xticks(chi_values)
 ax_speedup.set_xticklabels(['20', '40', '60', '80', '100'], fontsize=13)
 ax_speedup.grid(True, alpha=0.3, linestyle='--')
-#ax_speedup.legend(fontsize=11, framealpha=0.9)
 
 # Add value labels on points
 for i, (chi, speed) in enumerate(zip(chi_values, speedup)):
