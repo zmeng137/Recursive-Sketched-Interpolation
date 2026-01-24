@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'py'))
 
 from multiply_rsi import HadamardTT_RSI   # RSI method for TT product
 from multiply_direct import HadamardTT_direct
-from tt_rounding import TT_rounding
+from tt_rounding import TT_rounding, TT_rounding_ID
 
 def mps_all_contract(mps):
     result = np.array([[1.0]])
@@ -80,7 +80,7 @@ def readh5_mps(filePath):
     return mps, num_sites, energy, energy_diag
 
 # Load MPS from file
-filePath = "/home/zmeng5/QTTM/datasets/itensor_dmrg_mps/n15_system/psi_maxdim10_n15.h5"
+filePath = "/home/zmeng5/QTTM/datasets/itensor_dmrg_mps/n20_system/psi_maxdim30_n20.h5"
 mps, num_sites, energy, energy_diag = readh5_mps(filePath)
 
 print("\n == Evaluation of True func == \n")
@@ -97,14 +97,14 @@ Energydiag_dict_dir = {}
 rel_error_dict_rsi = {}
 rel_error_dict_dir = {}
 
-fulleval_thres = 20
+fulleval_thres = 15
 if num_sites <= fulleval_thres:
     full_tensor = tl.tt_to_tensor(mps)
     full_tensor_diag = full_tensor * full_tensor
 
-r_max = [50,100,150] 
+r_max = [30] 
 contract_number = [2] 
-oversampling = 10
+oversampling = 0
 
 print("\n ====== RSI ====== \n")
 for co in contract_number:
@@ -145,7 +145,7 @@ TTrank_direct = [TTg_direct[0].shape[0]] + [TTg_direct[k].shape[2] for k in rang
 # Rounding recompression
 print("\n == Direct method (TT-rounding) == \n")
 for rm in r_max:
-    TTg_direct_trunc = TT_rounding(TTg_direct, 0, rm)   # Post re-compression
+    TTg_direct_trunc = TT_rounding(TTg_direct,0,rm)   # Post re-compression
     TTrank_direct_trunc = [TTg_direct_trunc[0].shape[0]] + [TTg_direct_trunc[k].shape[2] for k in range(len(TTg_direct_trunc)-1)] + [TTg_direct_trunc[-1].shape[2]]
 
     print("\n == Evaluation of Approx == \n")

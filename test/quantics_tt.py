@@ -20,8 +20,8 @@ from tt_rounding import TT_rounding, TT_rounding_ID                  # TT roundi
 
 def quantics_function_tensor():
     # Load quantics function tensors from synthetic formulas 
-    qtensor_f1, _ = load_quantics_tensor_formula(7, 25)
-    qtensor_f2, _ = load_quantics_tensor_formula(8, 25)
+    qtensor_f1, _ = load_quantics_tensor_formula(5, 20)
+    qtensor_f2, _ = load_quantics_tensor_formula(6, 20)
  
     # Load quantics function tensors from hdf5 files 
     #filePath_f1 = "/home/zmeng5/QTTM/datasets/qtensor_well/active_matter_t50_Dxy.hdf5"
@@ -104,23 +104,22 @@ error_dict_rsi_round = {}
 error_dict_direct = {}
 
 # Recursive Sketching Interpolation (RSI) Algorithm
+contract_number = [2]
+r_max = [4,6,8,10,12]
+oversampling = [5]
 
-#contract_number = [2,3,4]
-#r_max = [45]
-r_max = [15]
-oversampling = [0]
-
-for rm in r_max:
-    for p in oversampling:
-        seed = 0
-        eps=0
-        sketch_dim = int(rm/2) + p # oversampling = ...
-        TTg_rsi, TTRank_rsi, _  = HadamardTT_RSI_fs(tt_fs, 2, rm, eps, sketch_dim, seed)
-        
-        if ifEval:
-            g_rsi = tl.tt_to_tensor(TTg_rsi)
-            err_g_rsi = np.linalg.norm(real_g - g_rsi) / np.linalg.norm(real_g)
-            error_dict_rsi[f"cont_no={2}; rmax={rm}; oversampling={p}"] = err_g_rsi
+for con in contract_number:
+    for rm in r_max:
+        for p in oversampling:
+            seed = 0
+            eps=0
+            sketch_dim = int(rm/2) + p # oversampling = ...
+            TTg_rsi, TTRank_rsi, _  = HadamardTT_RSI_fs(tt_fs, con, rm, eps, sketch_dim, seed)
+            
+            if ifEval:
+                g_rsi = tl.tt_to_tensor(TTg_rsi)
+                err_g_rsi = np.linalg.norm(real_g - g_rsi) / np.linalg.norm(real_g)
+                error_dict_rsi[f"cont_no={con}; rmax={rm}; oversampling={p}"] = err_g_rsi
 
 #rsi_rounding_rank = [10,15,20,25]
 #for rm in rsi_rounding_rank:
