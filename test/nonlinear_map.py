@@ -119,7 +119,7 @@ if ifPlot:
     ax2.set_ylabel(r'(b) Relative Error $\epsilon_r$', fontsize=16)
    
     ax2.set_yscale('log')
-    ax2.grid(True, alpha=0.3, which='both')
+    ax2.grid(True, alpha=0.3, which='major')
     ax2.set_xticks(r_max)
     ax2.set_xticklabels(r_max,fontsize=15)
 

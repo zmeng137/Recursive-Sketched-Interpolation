@@ -31,7 +31,7 @@ Function_Collection[9] = lambda x: np.cos(x * (2 ** B_const)) * np.exp(- x * x) 
 Function_Collection[10]= lambda x: np.sin(x * (2 ** B_const)) * (np.exp(x * x) + 5 * x + 2) - 4*x
 
 # Test function for nonlinear mapping
-Function_Collection[11]= lambda x: np.cos(10*x) * np.sin(x * (2 ** B_const)) * (np.exp(x * x) + 5 * x + 2) - 4*x
+Function_Collection[11]= lambda x: np.cos(10*x) * np.sin(x * (2 ** 5)) * (np.exp(x * x) + 5 * x + 2) - 4*x
 
 Function_Collection[12]= lambda x: np.exp(-(x-0.2)**2/(2*0.1**2)) + 0.3 *x*x*x - 0.6*x*x + 2
 Function_Collection[13]= lambda x: np.exp(-(x-0.4)**2/(2*0.3**2)) - x*x*x + 0.5*x*x + 3
