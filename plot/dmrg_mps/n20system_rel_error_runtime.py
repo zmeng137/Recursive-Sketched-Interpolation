@@ -37,12 +37,12 @@ bond_dim_20 = [3,9] + [20 for i in range(15)] + [9,3]
 bond_dim_30 = [3,9,27] + [30 for i in range(13)] + [27,9,3]
 positions = list(range(1,20))
 
-# Create figure with 2 rows
-fig = plt.figure(figsize=(14, 8))
-gs = fig.add_gridspec(2, 3, hspace=0.35, wspace=0.3, height_ratios=[1.2, 1])
+# Create figure with 2 rows - using 6 columns to allow finer control
+fig = plt.figure(figsize=(15, 7.5))
+gs = fig.add_gridspec(2, 9, hspace=0.4, wspace=-0.2, height_ratios=[1.2, 1])
 
-# First row, first subfigure: Bond dimensions
-ax_bond = fig.add_subplot(gs[0, 0])
+# First row, first subfigure: Bond dimensions (spans 2 columns)
+ax_bond = fig.add_subplot(gs[0, 0:2])
 ax_bond.plot(positions, bond_dim_30, marker='s', linestyle='-', linewidth=2, 
              markersize=6, label=r'$\chi_{\max}(\psi)=30$', color='#A3CEF1')
 ax_bond.plot(positions, bond_dim_20, marker='^', linestyle='-', linewidth=1.8, 
@@ -54,11 +54,12 @@ ax_bond.set_xlabel(r'Position $i=1,\ldots,19$', fontsize=14)
 ax_bond.set_ylabel(r'(a) Bond Dimension $\chi_i$ of Input $\psi$', fontsize=12)
 #ax_bond.set_title('Input Maximum Bond Dimensions', fontsize=13, fontweight='bold')
 ax_bond.grid(True, alpha=0.3, linestyle=':')
-ax_bond.legend(fontsize=10, loc='best')
+ax_bond.set_ylim(1, 45)
+ax_bond.legend(fontsize=10, loc='upper center')
 ax_bond.set_xticks([1,5,10,15,19])
 
-# First row, second subfigure: Runtime (spans two columns)
-ax_runtime = fig.add_subplot(gs[0, 1:])
+# First row, second subfigure: Runtime (spans 3 columns = 1.5 error plot widths)
+ax_runtime = fig.add_subplot(gs[0, 4:7])
 
 # Plot algorithm runtimes
 ax_runtime.semilogy(input_rank, runtime_vs_rank_rsi, 
@@ -74,7 +75,7 @@ ax_runtime.semilogy(input_rank, runtime_vs_rank_dir,
 # Add reference lines for rank^3 and rank^4 scaling
 rank_range = np.linspace(input_rank[0], input_rank[-1], 100)
 # Scale the reference lines to fit nicely in the plot
-scale_rank3 = runtime_vs_rank_rsi[0] / (input_rank[0]**3)
+scale_rank3 = (runtime_vs_rank_dir[0]-15) / (input_rank[0]**3)
 scale_rank4 = runtime_vs_rank_dir[0] / (input_rank[0]**4)
 
 rank3_line = (scale_rank3) * (rank_range ** 3)
@@ -83,23 +84,24 @@ rank4_line = (scale_rank4) * (rank_range ** 4)
 ax_runtime.semilogy(rank_range, rank3_line, 
                     linestyle='--', color='gray', linewidth=2, 
                     label=r'$\propto$ $\chi^3$', alpha=0.7)
-ax_runtime.semilogy(rank_range, rank4_line, 
-                    linestyle=':', color='black', linewidth=2, 
-                    label=r'$\propto$ $\chi^4$', alpha=0.7)
+#ax_runtime.semilogy(rank_range, rank4_line, 
+#                    linestyle=':', color='black', linewidth=2, 
+#                    label=r'$\propto$ $\chi^4$', alpha=0.7)
 
 ax_runtime.set_xlabel(r'Input $\chi_{\max}(\psi)$', fontsize=14)
 ax_runtime.set_ylabel('(b) Runtime (ms)', fontsize=14)
 #ax_runtime.set_title('Runtime vs Input Rank', fontsize=13, fontweight='bold')
 #ax_runtime.set_ylim([20, 1000000])
-ax_runtime.grid(True, alpha=0.3, linestyle=':')
+ax_runtime.grid(True, alpha=0.4, linestyle=':',which='both')
 ax_runtime.set_xticks(input_rank)
 ax_runtime.legend(fontsize=10, loc='best')
 
 
-# Second row: Three relative error subfigures
+# Second row: Three relative error subfigures (each spans 2 columns in 6-column grid)
 markers = ['o', 's', '^']
+column_positions = [0, 3, 6]  # Start positions for each error plot
 for i, case in enumerate(test_cases):
-    ax = fig.add_subplot(gs[1, i])
+    ax = fig.add_subplot(gs[1, column_positions[i]:column_positions[i]+2])
     
     ax.semilogy(case['ranks'], case['rsi_rel_error'], 
                 marker=markers[0], linestyle='-', color=colors[0], 
@@ -128,5 +130,5 @@ for i, case in enumerate(test_cases):
     if i == 2:
         ax.set_xticks([10,100,200,300,400,500])
 
-plt.savefig('algorithm_comparison.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('n20_error_runtime_mps.pdf', dpi=300, bbox_inches='tight')
 plt.show()
