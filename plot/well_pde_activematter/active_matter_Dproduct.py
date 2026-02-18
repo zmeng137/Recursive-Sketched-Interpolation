@@ -4,8 +4,8 @@ import numpy as np
 import time as tm
 import tensorly as tl
 import matplotlib.pyplot as plt
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'py'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..', 'MLA-Toolkit', 'py'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..', 'py'))
 from tensorly.tt_tensor import TTTensor
 from utils import load_quantics_tensor_hdf5, convert_quantics_tensor_to_1d, size_tt, load_quantics_tensor_formula, tt_to_tensor_tensordot
 from tci import TT_IDPRRLDU_L2R
@@ -64,7 +64,7 @@ for i in range(1):
         axes[j].imshow(rsi_g_2d, cmap='viridis', aspect='auto')
         # Two-line title with error in scientific notation and runtime
         axes[j].set_title(
-            rf'Target $\chi_{{\max}}={r_max}$'+'\n'+rf'$e_r$={err_g_rsi:.2e}' + f'\nruntime = {runtime_ms:.2f} ms',
+            rf'Target $\chi_{{\max}}={r_max}$'+'\n'+rf'$e_r$={err_g_rsi:.2e}',
             fontsize=20
         )
         axes[j].set_xticks([])

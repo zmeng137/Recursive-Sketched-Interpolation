@@ -141,7 +141,7 @@ for idx, case in enumerate(test_cases):
     if case['dir_ranks']:
         ax_right.semilogy(case['dir_ranks'], case['dir_rel_error'], 
                     marker=markers[2], linestyle=linestyles[0],
-                    label="Direct", linewidth=2, markersize=6, 
+                    label="direct", linewidth=2, markersize=6, 
                     color=color_dir, alpha=0.7+idx*0.15)
 
 ax_right.set_xlabel(r'$\chi_{\max}(g)$', fontsize=20)
