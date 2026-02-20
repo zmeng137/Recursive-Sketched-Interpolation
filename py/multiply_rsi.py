@@ -5,8 +5,7 @@ import numpy as np
 import math as ma
 import tensorly as tl
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-from interpolation import interpolative_prrldu
+from interpolative import interpolative_prrldu
 from utils import adj_ttcore_contract
 from sketch import tt_sketching_cache
 

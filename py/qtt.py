@@ -4,8 +4,16 @@ import numpy as np
 import random as rd
 import matplotlib.pyplot as plt
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-from tci import slice_first_modes, slice_last_modes
+def slice_first_modes(arr, indices):
+    # Slice the first len(indices) modes with given indices
+    slicing = tuple(indices) + tuple(slice(None) for _ in range(arr.ndim - len(indices)))
+    return arr[slicing]  # Use square brackets, not parentheses
+
+# Slice tensor: T[:,J]
+def slice_last_modes(arr, indices):
+    # Slice the last len(indices) modes with given indices
+    slicing = tuple(slice(None) for _ in range(arr.ndim - len(indices))) + tuple(indices)
+    return arr[slicing] 
 
 # Union rows of two arrays with a maximum row limit
 def union_rows_bounded(A, B, max_rows):

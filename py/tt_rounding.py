@@ -3,8 +3,7 @@ import sys
 import numpy as np
 import time as tm
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'MLA-Toolkit', 'py'))
-from interpolation import interpolative_prrldu
+from interpolative import interpolative_prrldu
 
 def TT_rounding(tt, eps, max_rank):
     # Dimension and copy tensor objects

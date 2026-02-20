@@ -3,9 +3,7 @@ import sys
 import h5py
 import numpy as np
 import tensorly as tl
-
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'py'))
-
 from multiply_rsi import HadamardTT_RSI   # RSI method for TT product
 from multiply_direct import HadamardTT_direct
 from tt_rounding import TT_rounding, TT_rounding_ID
@@ -80,7 +78,7 @@ def readh5_mps(filePath):
     return mps, num_sites, energy, energy_diag
 
 # Load MPS from file
-filePath = "/home/zmeng5/QTTM/datasets/itensor_dmrg_mps/n20_system/psi_maxdim30_n20.h5"
+filePath = "/home/zmeng5/QTTM/datasets/itensor_dmrg_mps/n50_system/psi_maxdim40_n50.h5"
 mps, num_sites, energy, energy_diag = readh5_mps(filePath)
 
 print("\n == Evaluation of True func == \n")
@@ -102,7 +100,7 @@ if num_sites <= fulleval_thres:
     full_tensor = tl.tt_to_tensor(mps)
     full_tensor_diag = full_tensor * full_tensor
 
-r_max = [30] 
+r_max = [100] 
 contract_number = [2] 
 oversampling = 0
 
