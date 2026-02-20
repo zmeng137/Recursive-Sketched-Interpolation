@@ -15,80 +15,82 @@ dataset = WellDataset(
     well_base_path=base_path,
     well_dataset_name="active_matter",
     well_split_name="train",
-    n_steps_input=10,
+    n_steps_input=80,
     n_steps_output=1,
     use_normalization=False,
 )
 
-item = dataset[0]  # Which dataset
+item = dataset[0]
 
-# The data structure
-print("Available keys:", list(item.keys()))
-print("Input fields shape:", item['input_fields'].shape)
-print("Output fields shape:", item['output_fields'].shape)
-
-# Extract input fields (n_steps_input, 256, 256, n_fields)
+# Extract input fields (n_steps_input, 128, 384, n_fields)
 input_fields = item['input_fields']
-print(f"Input fields shape: {input_fields.shape}")
+print(f"Original input fields shape: {input_fields.shape}")
 
-# Spatial grid
+# SPATIAL TRUNCATION: Reduce from (128, 384) to (128, 256)
+# Option 1: Take first 256 columns
+#input_fields_truncated = input_fields[:, :, :256, :]
+
+# Option 2: Take center 256 columns (recommended for symmetry)
+# start_col = (384 - 256) // 2  # = 64
+# input_fields_truncated = input_fields[:, :, start_col:start_col+256, :]
+
+# Option 3: Take last 256 columns
+# input_fields_truncated = input_fields[:, :, -256:, :]
+
+#print(f"Truncated input fields shape: {input_fields_truncated.shape}")
+
+# Also truncate the spatial grid
 space_grid = item['space_grid']
-print(f"Space grid shape: {space_grid.shape}")
+print(f"Original space grid shape: {space_grid.shape}")
 
-# Extract x and y coordinates
-x_coords = space_grid[:, :, 0]  # x coordinates
-y_coords = space_grid[:, :, 1]  # y coordinates
+# Apply same truncation to spatial grid
+#space_grid_truncated = space_grid[:, :256, :]  # or use center/end based on above choice
+#print(f"Truncated space grid shape: {space_grid_truncated.shape}")
+
+x_coords = space_grid[:, :, 0]
+y_coords = space_grid[:, :, 1]
 
 # Choose which time step and field to plot
-time_step = 7    # Which time step (0 to n_steps_input-1)
-field_index = 1  # Which field (change this to plot different fields)
+time_step = 50
+field_index = 6
 
-# Extract the 2D function at specified time step
+# Extract the 2D function at specified time step (now 128×256)
 function_2d = input_fields[time_step, :, :, field_index]
+print(f"\nFunction 2D shape: {function_2d.shape}")
 
-# Statistics about the function
+# Statistics
 print(f"\nFunction statistics:")
 print(f"Min value: {function_2d.min():.4f}")
 print(f"Max value: {function_2d.max():.4f}")
 print(f"Mean value: {function_2d.mean():.4f}")
 print(f"Standard deviation: {function_2d.std():.4f}")
 
-# Reshape 2D to 1D function (row-major by default)
+# Reshape 2D to 1D function (row-major)
 function_1d_simple = function_2d.flatten()
-print(f"1D shape (simple flatten): {function_1d_simple.shape}")
-
-# Manual indexing to verify the ordering. Verify methods give the same result
-#function_1d_manual = np.zeros(256 * 256)
-#idx = 0
-#for i in range(256):  # x index
-#    for j in range(256):  # y index
-#        function_1d_manual[idx] = function_2d[i, j]
-#        idx += 1
-#print(f"1D shape (manual): {function_1d_manual.shape}")
-#print(f"Methods are equivalent: {np.allclose(function_1d_simple, function_1d_manual)}")
+print(f"1D shape: {function_1d_simple.shape}")  # Should be (32768,) = 128*256
 
 # Verify round-trip conversion
 function_2d_recovered = function_1d_simple.reshape(function_2d.shape)
 print(f"\nRound-trip conversion successful: {np.allclose(function_2d, function_2d_recovered)}")
 
-# Visualization to understand the reshaping
-fig, axes = plt.subplots(3, 1, figsize=(8, 15))
+# Visualization
+fig, axes = plt.subplots(3, 1, figsize=(10, 15))
 
-# Original 2D function
-im1 = axes[0].imshow(function_2d, cmap='viridis')
-axes[0].set_title('Original 2D Function')
+# Original 2D function (truncated)
+im1 = axes[0].imshow(function_2d, cmap='viridis', aspect='auto')
+axes[0].set_title(f'Truncated 2D Function ({function_2d.shape[0]}×{function_2d.shape[1]})')
 axes[0].set_xlabel('Y index')
 axes[0].set_ylabel('X index')
 plt.colorbar(im1, ax=axes[0])
 
-# 1D representation (show first 1000 elements)
+# 1D representation
 axes[1].plot(function_1d_simple[:1000])
 axes[1].set_title('1D Representation (first 1000 elements)')
 axes[1].set_xlabel('1D Index')
 axes[1].set_ylabel('Function Value')
 
 # Recovered 2D function
-im3 = axes[2].imshow(function_2d_recovered, cmap='viridis')
+im3 = axes[2].imshow(function_2d_recovered, cmap='viridis', aspect='auto')
 axes[2].set_title('Recovered 2D Function')
 axes[2].set_xlabel('Y index')
 axes[2].set_ylabel('X index')
@@ -98,14 +100,14 @@ plt.tight_layout()
 plt.savefig("active_matter_test.png")
 
 # Quantics tensor generation
+# For 128×256 = 32768 = 2^15, you need 15 qubits
 qtensor_from_func1d = convert_1d_to_quantics_tensor(function_1d_simple, 16)
 func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
 func1d_from_qtensor = torch.from_numpy(func1d_from_qtensor)
 print(f"Error - Function 1D -> quantics tensor -> Function 1D: {torch.norm(func1d_from_qtensor - function_1d_simple)}")
 
-
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/qt_active_matter_1.hdf5"
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/active_matter_t50_Dyy.hdf5"
 save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)

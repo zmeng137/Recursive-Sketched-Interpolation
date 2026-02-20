@@ -14,8 +14,8 @@ base_path = "/mnt/CROSS/Well/"
 
 dataset = WellDataset(
     well_base_path=base_path,
-    well_dataset_name="MHD_64",
-    well_split_name="train",
+    well_dataset_name="MHD_256",
+    well_split_name="test",
     n_steps_input=10,
     n_steps_output=1,
     use_normalization=False,
@@ -42,8 +42,8 @@ y_coords = space_grid[:, :, :, 1]  # y coordinates
 z_coords = space_grid[:, :, :, 2]  # z coordinates
 
 # Choose which time step and field to plot
-time_step = 4    # Which time step (0 to n_steps_input-1)
-field_index = 0  # Which field (change this to plot different fields)
+time_step = 5    # Which time step (0 to n_steps_input-1)
+field_index = 5  # Which field (change this to plot different fields)
 
 # Extract the 3D function at specified time step
 function_3d = input_fields[time_step, :, :, :, field_index]
@@ -103,16 +103,16 @@ def plot_1d_vectorization(func1d):
     plt.savefig("Vectorization_1DFunc.png")
     
 #plot_isosurface(x_coords.numpy(), y_coords.numpy(), z_coords.numpy(), function_3d.numpy())
-plot_1d_vectorization(function_1d_simple)
+#plot_1d_vectorization(function_1d_simple)
 
 # Quantics tensor generation
-qtensor_from_func1d = convert_1d_to_quantics_tensor(function_1d_simple, 18)
+qtensor_from_func1d = convert_1d_to_quantics_tensor(function_1d_simple, 24)
 func1d_from_qtensor = convert_quantics_tensor_to_1d(qtensor_from_func1d)
 func1d_from_qtensor = torch.from_numpy(func1d_from_qtensor)
 print(f"Error - Function 1D -> quantics tensor -> Function 1D: {torch.norm(func1d_from_qtensor - function_1d_simple)}")
 
 # Save the data
-filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/qt_MHD64_1.hdf5"
+filepath = "/home/zmeng5/QTTM/datasets/qtensor_well/mhd256_vy.hdf5"
 save_quantics_tensor_hdf5(qtensor_from_func1d, filepath)
 
 qtensor_new, metadata = load_quantics_tensor_hdf5(filepath)
