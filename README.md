@@ -109,12 +109,11 @@ python test/nonlinear_map.py
 
 ## Data
 
-Datasets are stored in HDF5 format under `datasets/`. Pre-generated quantics tensors and MPS files can be reproduced using the scripts in `py/data_generation/`.
+Some pre-generated data is stored in HDF5 format under `datasets/`, such as the quantum MPS and the QTT representing PDE functions. Other data such as synthetic functions in QTT format is automatically generated in the test scripts.
 
 | Dataset | Description |
 |---------|-------------|
-| `itensor_dmrg_mps/` | DMRG ground-state MPS for 1D spin chains (n = 10, 15, 20, 50 sites, generated with ITensor) |
-| `qtensor_function/` | Quantics TT encodings of synthetic 1D/multidimensional functions |
+| `itensor_dmrg_mps/` | DMRG ground-state MPS for 1D spin chains (n = 20, 50 sites, various maximum bond dimensions, generated from ITensor dmrg) |
 | `qtensor_well/` | Quantics TT encodings of PDE solutions from the [Well dataset](https://github.com/PolymathicAI/the_well) (active matter) |
 
 ---
