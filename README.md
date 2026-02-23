@@ -11,11 +11,11 @@ This repository contains the implementation of the Recursive Sketched Interpolat
 
 ## Overview
 
-Computing the **Hadamard (element-wise) product** of two tensor trains (TTs) is a fundamental operation in tensor network methods. The naive approach yields a product TT whose bond dimension grows as the product of the input bond dimensions, and recompressing it via SVD-based rounding costs at least **O(χ⁴)** in the bond dimension χ.
+Computing the **Hadamard (element-wise) product** of two tensors represented by tensor trains (TTs) is a fundamental operation in tensor network methods. The naive Kronecker approach yields a product TT whose bond dimension grows as the product of the input bond dimensions, followed by rank recompression via SVD-based TT-rounding. This direct approach costs at least **O(χ⁴)** in the bond dimension χ.
 
 This work introduces **RSI (Recursive Sketched Interpolation)**, which combines:
-- **Randomized TT sketching** — compresses the trailing modes of the TT using SRHT or similar random maps, avoiding explicit formation of the full product tensor.
-- **Interpolative decomposition (ID)** — selects representative rows/columns to form compressed TT cores, maintaining a nested interpolation structure across sites.
+- **Randomized TT sketching** — compresses the trailing modes of the TT using randomized TT sketching, avoiding explicit formation of the full product tensor.
+- **Interpolative decomposition (ID)** — selects representative rows/columns of the sketched tensors to form product TT-cores in one-side interpolation format, maintaining a nested interpolation structure across sites.
 
 RSI reduces the complexity to **O(χ³)** while achieving accuracy comparable to traditional methods. The algorithm generalizes naturally to Hadamard products of **multiple TTs** and other **nonlinear element-wise mappings** of a TT, g(TT), without increasing complexity beyond O(χ³).
 
