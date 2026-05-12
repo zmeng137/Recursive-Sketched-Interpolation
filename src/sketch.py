@@ -48,7 +48,7 @@ def srht_sketch_tt_core(G, k, seed=None):
     idx = rng.choice(d, size=k, replace=False)
 
     # Output
-    Gs = np.empty((r_prev, k, r_next))
+    Gs = np.empty((r_prev, k, r_next), dtype=G.dtype)
 
     scale = np.sqrt(d / k)
 
@@ -376,10 +376,11 @@ def random_uniform_tensor(shape, low=0.0, high=1.0, complex=False):
     else:
         return np.random.uniform(low, high, size=shape if isinstance(shape, tuple) else (shape,))
 
-def tt_sketching_cache(tt_cores, sketch_tail_no, skdim, seed):
+def tt_sketching_cache(tt_cores, sketch_tail_no, skdim, seed, verbose=True):
     dim = len(tt_cores)
     shape = [tt_cores[i].shape[1] for i in range(dim)]   
-    print(f"Performing TT random sketching cache... the order-{dim} tensor has shape of {shape}")
+    if verbose:
+        print(f"Performing TT random sketching cache... the order-{dim} tensor has shape of {shape}")
 
     # Formalize the new sketched TT 
     tt_sketched = tt_cores[dim - sketch_tail_no:].copy()

@@ -4,7 +4,7 @@ import numpy as np
 import time as tm
 import tensorly as tl
 import matplotlib.pyplot as plt
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'py'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from tci import TT_IDPRRLDU_L2R
 from map_rsi import NonlinearMapTT_RSI
 from utils import size_tt, load_quantics_tensor_formula, Function_Collection, convert_quantics_tensor_to_1d

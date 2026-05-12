@@ -14,15 +14,14 @@ def PivotedQR(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     Xc = np.copy(X)
     n, p = Xc.shape 
     #t = min(n,p) 
-    R = np.zeros([p,p]) # Upper triangular R
-    Q = np.zeros([n,p]) # Orthogonal Q
+    R = np.zeros([p,p], dtype=Xc.dtype) # Upper triangular R
+    Q = np.zeros([n,p], dtype=Xc.dtype) # Orthogonal Q
     P = np.arange(p)    # Permutation P
     
     # v_j = ||X[:,j]||^2, j=1,...,n
-    v = np.zeros(p)
+    v = np.zeros(p, dtype=np.float64)
     for j in range(p):
-        v_j = Xc[:,j].T @ Xc[:,j]
-        v[j] = v_j
+        v[j] = np.linalg.norm(Xc[:, j]) ** 2
     pk = np.argmax(v)   # Determine an index p1 such that v_p1 is maximal
     maxV = v[pk]
     # Gram-Schmidt process
@@ -40,10 +39,10 @@ def PivotedQR(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
         
         # Orthogonalization and R update
         Q[:,k] = Xc[:,k] - Q[:,0:k] @ R[0:k, k]
-        R[k,k] = np.sqrt(Q[:,k].T @ Q[:,k])
+        R[k,k] = np.linalg.norm(Q[:, k])
         Q[:,k] = Q[:,k] / R[k,k]
         # Re-orthogonalization is needed? ...
-        R[k,k+1:p] = Q[:,k].T @ Xc[:,k+1:p]
+        R[k,k+1:p] = np.conjugate(Q[:,k]).T @ Xc[:,k+1:p]
         
         rank += 1 # Rank increment
                 
@@ -119,9 +118,9 @@ def prrldu(M_: np.ndarray, cutoff: float = 0.0,
     #utils.MatrixSparseStat(M)
     
     # Initialize L, d, U
-    L = np.eye(Nr, k)
-    d = np.zeros(k)
-    U = np.eye(k, Nc)
+    L = np.eye(Nr, k, dtype=M.dtype)
+    d = np.zeros(k, dtype=M.dtype)
+    U = np.eye(k, Nc, dtype=M.dtype)
     rank = 0
     
     for s in range(min(k, maxdim)):

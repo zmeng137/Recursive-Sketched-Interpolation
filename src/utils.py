@@ -143,20 +143,19 @@ def load_quantics_tensor_hdf5(filepath):
 
 # Convert 1D function to quantics tensor format recursively
 def convert_1d_to_quantics_tensor(function, n_bits):
+    function = np.asarray(function)
     if len(function) != 2**n_bits:
         raise ValueError(f"Function length {len(function)} != 2^{n_bits} = {2**n_bits}")
     
     if n_bits == 1:
-        #quantics_tensor = torch.zeros(2,dtype=function.dtype)
-        quantics_tensor = np.zeros(2,dtype=np.float32)
+        quantics_tensor = np.zeros(2, dtype=function.dtype)
         quantics_tensor[0] = function[0]
         quantics_tensor[1] = function[1]
         return quantics_tensor
     
     # Create the quantics tensor
     quantics_shape = (2,) * n_bits
-    #quantics_tensor = torch.zeros(quantics_shape, dtype=function.dtype)
-    quantics_tensor = np.zeros(quantics_shape, dtype=np.float32)
+    quantics_tensor = np.zeros(quantics_shape, dtype=function.dtype)
     
     new_bit = n_bits - 1
     func_half_1 = function[0 : 2 ** new_bit]
@@ -175,7 +174,7 @@ def convert_quantics_tensor_to_1d(quantics_tensor):
     l1 = quantics_tensor.size
     l2 = l1 >> 1
 
-    function_1D = np.zeros(l1)
+    function_1D = np.zeros(l1, dtype=quantics_tensor.dtype)
     quantics_tensor_0 = quantics_tensor[0,:]
     quantics_tensor_1 = quantics_tensor[1,:]
 

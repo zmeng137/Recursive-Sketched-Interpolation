@@ -25,7 +25,7 @@ def interpolative_prrldu(M: np.ndarray, cutoff: float = 0.0, maxdim: int = np.ii
     
     # Compute the coefficients
     U11 = U[:, :rank]      # Extract relevant submatrices
-    Zp = np.zeros([rank, M.shape[1]])
+    Zp = np.zeros([rank, M.shape[1]], dtype=M.dtype)
     Zp[:, :rank] = np.identity(rank)
     Zp[:, rank:] = solve_triangular(U11, U[:, rank:], lower=False)
     
@@ -136,7 +136,7 @@ def interpolative_nuclear(M, cutoff=0.0, maxdim=None):
     C = M[:, cols]
     
     # X = C \ M
-    X = np.zeros([len(cols), M.shape[1]])
+    X = np.zeros([len(cols), M.shape[1]], dtype=M.dtype)
     qc, rc = qr(C,mode='economic')
     for i in range(M.shape[1]):
         m = M[:, i]
