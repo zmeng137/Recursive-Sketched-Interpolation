@@ -7,6 +7,7 @@ sp = np.array([[0,1],[0,0]])
 sm = np.array([[0,0],[1,0]])
 su = np.array([[1.,0.],[0.,0.]])
 sd = np.array([[0.,0.],[0.,1.]])
+
 def make_tensorA_df2 ():
     A = np.zeros ((3,2,2,3)) # (k1,ipr,i,k2)
     A[0,:,:,0] = I
