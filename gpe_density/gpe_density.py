@@ -6,13 +6,13 @@ from pathlib import Path
 
 os.environ["OMP_NUM_THREADS"] = "1"
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-TOOLS_DIR = ROOT_DIR / "NumpyTensorTools"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TOOLS_DIR = REPO_ROOT / "src"
 sys.path.append(str(TOOLS_DIR))
 
 import numpy as np
 import npmps
-import qtt_tools as qtt
+import qtt
 from multiply_rsi import HadamardTT_RSI
 
 

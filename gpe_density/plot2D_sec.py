@@ -8,12 +8,12 @@ import numpy as np
 from matplotlib import cm
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator, ScalarFormatter
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../NumpyTensorTools")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 import npmps
 import plot_utility_jax as pltut
 import plotsetting as ps
-import qtt_tools as qtt
+import qtt
 
 plt.rc("text", usetex=True)
 plt.rc("font", family="serif")
